@@ -284,6 +284,52 @@ func (d *DB) validateClose(id, taskType string) error {
 	return nil
 }
 
+func (d *DB) DeleteTask(id string, force bool, changedBy string) error {
+	existing, err := d.GetTask(id)
+	if err != nil {
+		return fmt.Errorf("task not found: %s", id)
+	}
+
+	// Without --force, only allow deleting open items
+	if !force && existing.Status != "open" {
+		return fmt.Errorf("cannot delete %s in status '%s' (use --force to override)", id, existing.Status)
+	}
+
+	// Check for children regardless of force
+	var childCount int
+	err = d.conn.QueryRow(
+		`SELECT COUNT(*) FROM tasks WHERE parent_id = ?`, id,
+	).Scan(&childCount)
+	if err != nil {
+		return err
+	}
+	if childCount > 0 {
+		childType := "tasks"
+		if existing.Type == "task" {
+			childType = "subtasks"
+		}
+		return fmt.Errorf("cannot delete: %d %s still exist (delete children first)", childCount, childType)
+	}
+
+	// Transaction: clean up all references then delete
+	tx, err := d.conn.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	tx.Exec(`DELETE FROM dependencies WHERE upstream_id = ? OR downstream_id = ?`, id, id)
+	tx.Exec(`DELETE FROM audit WHERE task_id = ?`, id)
+	tx.Exec(`DELETE FROM tasks WHERE id = ?`, id)
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	d.touchSession(id)
+	return nil
+}
+
 func (d *DB) ReadyTasks() ([]models.Task, error) {
 	// Tasks (not epics, not subtasks) that are open and have no open blockers
 	rows, err := d.conn.Query(`

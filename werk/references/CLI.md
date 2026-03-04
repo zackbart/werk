@@ -35,6 +35,7 @@ werk epic list [--status open|in_progress|done|all]
 werk epic show <id>
 werk epic update <id> [--title ""] [--priority 0-4] [--notes ""] --agent
 werk epic close <id> --agent
+werk epic delete <id> [--force] --agent            Permanently remove
 ```
 
 ## Tasks
@@ -47,6 +48,7 @@ werk task update <id> [--title ""] [--priority 0-4] [--notes ""] --agent
 werk task start <id> --agent                       Set to in_progress
 werk task block <id> --agent                       Set to blocked
 werk task close <id> --agent                       Set to done
+werk task delete <id> [--force] --agent            Permanently remove
 werk task ready                                    List unblocked tasks
 ```
 
@@ -59,6 +61,7 @@ werk subtask show <id>
 werk subtask update <id> [--title ""] [--notes ""] --agent
 werk subtask start <id> --agent
 werk subtask close <id> --agent
+werk subtask delete <id> [--force] --agent         Permanently remove
 ```
 
 ## Dependencies

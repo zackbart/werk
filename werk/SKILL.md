@@ -30,6 +30,11 @@ werk init
 
 This creates `.werk/tasks.db`. All commands automatically walk up the directory tree to find it, so `werk` works from any subdirectory — just like `git`.
 
+**Post-init checks:**
+
+1. Verify `.werk/.gitignore` uses correct relative patterns (`*.db-wal`, `*.db-shm`, `session.lock`) — not `.werk/`-prefixed paths. Versions ≤ 0.1.1 generated broken patterns; if you see `.werk/*.db-wal`, fix them.
+2. Check if any ancestor `.gitignore` has a `*.db` rule (common in Dolt/beads, Rails, and other projects). If so, add `!.werk/tasks.db` to the root `.gitignore` so the database is tracked by git.
+
 ---
 
 ## Session lifecycle
@@ -210,19 +215,25 @@ Dependencies can cross epic boundaries. Cycles are rejected automatically.
 
 ---
 
-## Closing rules
+## Closing and deleting
 
 - All **subtasks** must be closed before their parent **task** can be closed
 - All **tasks** must be closed before their parent **epic** can be closed
 - Closing sets `status=done` and records `closed_at` — this is permanent
+- **Deleting** permanently removes a row and its audit history. Use for duplicates and mistakes only — not for completed work:
+  ```
+  werk task delete <id> --agent             # only works on open items
+  werk task delete <id> --force --agent     # works on any status
+  ```
+- Children must be deleted before parents (subtasks → task → epic)
 
 ---
 
 ## Invariants — never break these
 
 - Never work on a task with open blockers
-- Never delete rows — only close them
-- Close children before parents (subtasks → task → epic)
+- Prefer closing over deleting — delete only duplicates and mistakes
+- Close/delete children before parents (subtasks → task → epic)
 - Always record decisions when making non-obvious technical choices
 - Always start and end sessions with the session commands
 - Always pass `--agent` on all write commands

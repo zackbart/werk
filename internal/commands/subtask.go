@@ -148,6 +148,24 @@ func newSubtaskCmd() *cobra.Command {
 		},
 	}
 
-	subtaskCmd.AddCommand(createCmd, listCmd, showCmd, updateCmd, startCmd, closeCmd)
+	// delete
+	deleteCmd := &cobra.Command{
+		Use:   "delete <id>",
+		Short: "Permanently delete a subtask",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			force, _ := cmd.Flags().GetBool("force")
+			err := database.DeleteTask(args[0], force, changedBy())
+			if err != nil {
+				outputError(err.Error())
+				return nil
+			}
+			outputJSON(map[string]string{"status": "deleted", "id": args[0]})
+			return nil
+		},
+	}
+	deleteCmd.Flags().Bool("force", false, "delete even if not in open status")
+
+	subtaskCmd.AddCommand(createCmd, listCmd, showCmd, updateCmd, startCmd, closeCmd, deleteCmd)
 	return subtaskCmd
 }

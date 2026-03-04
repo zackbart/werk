@@ -28,7 +28,7 @@ func newInitCmd() *cobra.Command {
 			d.Close()
 
 			// Create .gitignore in .werk/
-			gitignore := ".werk/*.db-wal\n.werk/*.db-shm\n.werk/session.lock\n"
+			gitignore := "*.db-wal\n*.db-shm\nsession.lock\nserve.pid\n"
 			os.WriteFile(".werk/.gitignore", []byte(gitignore), 0644)
 
 			outputJSON(map[string]string{"status": "initialized", "path": path})

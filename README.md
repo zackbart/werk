@@ -68,9 +68,9 @@ Epics have no parent. Tasks must belong to an epic. Subtasks must belong to a ta
 werk init                              Initialize .werk/tasks.db
 werk status                            Project summary
 
-werk epic create|list|show|update|close
-werk task create|list|show|update|start|block|close|ready
-werk subtask create|list|show|update|start|close
+werk epic create|list|show|update|close|delete
+werk task create|list|show|update|start|block|close|delete|ready
+werk subtask create|list|show|update|start|close|delete
 werk dep add|remove|list
 werk decision create|list|show
 werk session start|end|list|show

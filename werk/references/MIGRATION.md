@@ -56,20 +56,46 @@ bd list --type epic --format json
 
 Direct 1:1 — both use 0-4 scale (0=critical, 4=backlog).
 
-## Step 3: Migration script
+## Step 3: Dry run — inventory before migrating
+
+Before creating anything in werk, export a full inventory from beads so you know exactly what to expect:
+
+```bash
+# Count what you're migrating
+echo "Epics:    $(bd list --type epic --format json | wc -l)"
+echo "Tasks:    $(bd list --type task --format json | wc -l)"
+echo "Subtasks: $(bd list --type subtask --format json 2>/dev/null | wc -l)"
+
+# Save full export for reference
+bd export  # writes .beads/beads.jsonl
+```
+
+Keep these counts — you'll compare them against werk after migration.
+
+## Step 4: Migration script
 
 Run this workflow to migrate. Adjust the `bd list` commands based on your beads setup.
 
-### 3a. Migrate epics
+**Important:** Werk has no delete command (by design). If you create duplicates during migration, cleanup requires closing the extras or manual SQL. Run each step once and verify before proceeding to the next.
+
+### 4a. Migrate epics
 
 ```bash
 # List beads epics and create in werk
+# Check for existing epics first to avoid duplicates on re-runs
 bd list --type epic --format json | while read -r line; do
   TITLE=$(echo "$line" | jq -r '.Title')
   PRIORITY=$(echo "$line" | jq -r '.Priority // 2')
   DESC=$(echo "$line" | jq -r '.Description // empty')
   NOTES=$(echo "$line" | jq -r '.Notes // empty')
   COMBINED="${DESC:+$DESC}${DESC:+$'\n'}${NOTES:+$NOTES}"
+
+  # Skip if an epic with this exact title already exists in werk
+  EXISTING=$(werk epic list | jq -r --arg t "$TITLE" '.[] | select(.title == $t) | .id')
+  if [ -n "$EXISTING" ]; then
+    echo "SKIP epic (already exists as $EXISTING): $TITLE"
+    continue
+  fi
 
   if [ -n "$COMBINED" ]; then
     werk epic create "$TITLE" --priority "$PRIORITY" --notes "$COMBINED" --agent
@@ -79,7 +105,7 @@ bd list --type epic --format json | while read -r line; do
 done
 ```
 
-### 3b. Migrate tasks
+### 4b. Migrate tasks
 
 For each epic, migrate its child tasks. You'll need to map beads epic IDs to werk epic IDs.
 
@@ -94,6 +120,13 @@ bd list --type task --format json | while read -r line; do
   STATUS=$(echo "$line" | jq -r '.Status')
   NOTES=$(echo "$line" | jq -r '.Notes // empty')
 
+  # Skip if a task with this exact title already exists under this epic
+  EXISTING=$(werk task list --epic "$WERK_EPIC" | jq -r --arg t "$TITLE" '.[] | select(.title == $t) | .id')
+  if [ -n "$EXISTING" ]; then
+    echo "SKIP task (already exists as $EXISTING): $TITLE"
+    continue
+  fi
+
   TASK_JSON=$(werk task create "$TITLE" --epic "$WERK_EPIC" --priority "$PRIORITY" ${NOTES:+--notes "$NOTES"} --agent)
   TASK_ID=$(echo "$TASK_JSON" | jq -r '.id')
 
@@ -106,7 +139,7 @@ bd list --type task --format json | while read -r line; do
 done
 ```
 
-### 3c. Migrate dependencies
+### 4c. Migrate dependencies
 
 ```bash
 # For each blocks dependency in beads, add it in werk
@@ -115,7 +148,7 @@ done
 werk dep add tk-upstream tk-downstream --agent
 ```
 
-### 3d. Migrate key decisions
+### 4d. Migrate key decisions
 
 Review beads compacted summaries and any important comments for architectural decisions worth preserving:
 
@@ -124,7 +157,9 @@ werk decision create "Migrated from beads: <summary>" \
   --rationale "<original rationale or context>" --agent
 ```
 
-## Step 4: Verify
+## Step 5: Verify and deduplicate
+
+### Verify counts
 
 ```bash
 werk status --pretty
@@ -138,7 +173,42 @@ Compare counts against beads:
 bd stats
 ```
 
-## Step 5: Record the migration
+### Detect duplicates
+
+If the migration was run more than once (or an agent re-ran parts of it), you may have duplicate epics or tasks. Check for them:
+
+```bash
+# Find duplicate epic titles
+werk epic list | jq -r '[.[] | .title] | group_by(.) | map(select(length > 1)) | .[] | {title: .[0], count: length}'
+
+# Find duplicate task titles within each epic
+werk task list --status all | jq -r 'group_by(.epic_id) | .[] | [.[] | .title] | group_by(.) | map(select(length > 1)) | .[] | {title: .[0], count: length}'
+```
+
+### Clean up duplicates
+
+1. **Identify which copy to keep** — prefer the one with dependencies attached or correct status.
+2. **Delete the extras** — use `werk delete` to permanently remove duplicates:
+   ```bash
+   # Delete an open duplicate
+   werk task delete <duplicate-id> --agent
+
+   # Delete a duplicate that was already started/closed
+   werk task delete <duplicate-id> --force --agent
+
+   # For epics, delete child tasks first
+   werk task delete <child-id> --force --agent
+   werk epic delete <duplicate-id> --force --agent
+   ```
+
+**Tip for agents:** Before creating any item during migration, always check if it already exists by title. The scripts in Step 4 include these checks — if you're migrating manually, do the same:
+```bash
+# Before creating, check:
+werk epic list | jq -r --arg t "My Epic Title" '.[] | select(.title == $t) | .id'
+# If non-empty, skip creation
+```
+
+## Step 6: Record the migration
 
 ```bash
 werk decision create "Migrated from Beads to Werk" \
@@ -163,3 +233,32 @@ werk decision create "Migrated from Beads to Werk" \
 - Blocking dependencies
 - Key architectural decisions
 - Audit trail starts fresh in werk from the migration point forward
+
+## Gotchas
+
+### `.werk/.gitignore` has broken patterns (versions ≤ 0.1.1)
+
+Early versions of `werk init` generated `.werk/*.db-wal` inside `.werk/.gitignore`. Since gitignore patterns are relative to the file's location, this never matched anything. After running `werk init`, verify the patterns are:
+
+```
+*.db-wal
+*.db-shm
+session.lock
+serve.pid
+```
+
+If you see `.werk/`-prefixed patterns, fix them manually. Versions after 0.1.1 generate the correct patterns.
+
+### Root `.gitignore` may exclude `tasks.db`
+
+Many projects — especially those using Dolt, Beads, Rails, or other database-backed tools — have `*.db` in their root `.gitignore`. This silently excludes `.werk/tasks.db` from git.
+
+After `werk init`, check for this and add an exception if needed:
+
+```bash
+# Check if tasks.db would be ignored
+git check-ignore .werk/tasks.db
+
+# If it is ignored, add an exception to the root .gitignore
+echo '!.werk/tasks.db' >> .gitignore
+```
