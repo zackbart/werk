@@ -2,10 +2,16 @@
 
 All commands output JSON by default. Add `--pretty` for human-readable output.
 
+## DB discovery
+
+By default, `werk` walks up the directory tree from the current directory to find `.werk/tasks.db` — just like `git` finds `.git/`. This means you can `werk init` at a monorepo root and use `werk` from any subdirectory.
+
+Override with `--db <path>` or the `WERK_DB` environment variable.
+
 ## Global flags
 
 ```
---db <path>     Override DB path (default: .werk/tasks.db). Also: WERK_DB env var.
+--db <path>     Override DB path (default: auto-discovered .werk/tasks.db)
 --pretty        Human-readable output instead of JSON
 --agent         Set changed_by to "agent" on all writes (default: human)
 --help          Show help

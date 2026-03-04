@@ -9,7 +9,7 @@ compatibility: Requires the werk binary in PATH. Run werk init to set up.
 allowed-tools: Bash(werk:*)
 metadata:
   author: werk
-  version: "0.1.0"
+  version: "0.1.1"
 ---
 
 # Task Tracking
@@ -17,6 +17,18 @@ metadata:
 Use the `werk` CLI for all task and decision tracking. DB lives at `.werk/tasks.db`. Always pass `--agent` on all write commands.
 
 See [CLI Reference](references/CLI.md) for the full command list and output format.
+
+## Setup
+
+Install: `brew install zackbart/tap/werk` or `curl -fsSL https://raw.githubusercontent.com/zackbart/werk/main/install.sh | sh`
+
+Initialize at the repo root (or monorepo root):
+
+```
+werk init
+```
+
+This creates `.werk/tasks.db`. All commands automatically walk up the directory tree to find it, so `werk` works from any subdirectory — just like `git`.
 
 ---
 
