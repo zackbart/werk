@@ -22,76 +22,124 @@
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); }
 
   /* Header */
-  .header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--surface); }
-  .header h1 { font-size: 20px; font-weight: 600; }
-  .header h1 span { color: var(--accent); }
-  .tabs { display: flex; gap: 4px; }
-  .tab { padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; color: var(--text-muted); border: none; background: none; transition: all 0.15s; }
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+  .header h1 span { color: var(--text); }
+  .tabs { display: flex; gap: 2px; }
+  .tab { padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text-muted); border: none; background: none; transition: all 0.15s; font-weight: 500; }
   .tab:hover { color: var(--text); background: rgba(255,255,255,0.05); }
   .tab.active { color: var(--text); background: rgba(255,255,255,0.1); }
-  .stats { display: flex; gap: 16px; font-size: 13px; color: var(--text-muted); }
+  .stats { display: flex; gap: 16px; font-size: 12px; color: var(--text-muted); }
   .stat-val { font-weight: 600; color: var(--text); }
 
   /* Board */
-  .board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 24px; height: calc(100vh - 65px); overflow: hidden; }
+  .board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 16px; height: calc(100vh - 49px); overflow: hidden; }
   .column { background: var(--surface); border-radius: 8px; border: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
-  .column-header { padding: 12px 16px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-  .column-header .count { background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+  .column-header { padding: 12px 16px; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; border-top: 2px solid var(--border); border-radius: 8px 8px 0 0; }
+  .col-blocked .column-header { border-top-color: var(--red); }
+  .col-ready .column-header { border-top-color: var(--accent); }
+  .col-in-progress .column-header { border-top-color: var(--yellow); }
+  .col-closed .column-header { border-top-color: var(--green); }
+  .column-header .count { background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; margin-left: 8px; }
   .column-cards { padding: 8px; overflow-y: auto; flex: 1; }
 
-  .card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s; }
+  .today-toggle { font-size: 11px; padding: 3px 10px; border-radius: 12px; cursor: pointer; border: 1px solid var(--border); background: none; color: var(--text-muted); transition: all 0.15s; }
+  .today-toggle.active { background: rgba(63,185,80,0.15); color: var(--green); border-color: rgba(63,185,80,0.3); }
+
+  .card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s; }
   .card:hover { border-color: var(--accent); }
-  .card-title { font-size: 14px; font-weight: 500; margin-bottom: 6px; }
-  .card-meta { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--text-muted); }
-  .card-id { font-family: monospace; }
+  .card-title { font-size: 13px; font-weight: 500; margin-bottom: 8px; line-height: 1.4; }
+  .card-meta { display: flex; gap: 8px; align-items: center; font-size: 11px; color: var(--text-muted); flex-wrap: wrap; }
+  .card-id { font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace; font-size: 11px; }
   .card-epic { color: var(--purple); font-size: 11px; }
 
-  .priority-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+  .priority-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; }
   .priority-0 { background: rgba(248,81,73,0.2); color: var(--red); }
   .priority-1 { background: rgba(240,136,62,0.2); color: var(--orange); }
-  .priority-2 { background: rgba(210,153,34,0.2); color: var(--yellow); }
-  .priority-3 { background: rgba(139,148,158,0.15); color: var(--text-muted); }
-  .priority-4 { background: rgba(139,148,158,0.1); color: var(--text-muted); }
+  .priority-2 { background: rgba(210,153,34,0.15); color: var(--yellow); }
+  .priority-3 { background: rgba(139,148,158,0.1); color: var(--text-muted); }
+  .priority-4 { background: rgba(139,148,158,0.07); color: var(--text-muted); }
 
-  .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
   .status-open { background: var(--text-muted); }
   .status-in_progress { background: var(--yellow); }
   .status-blocked { background: var(--red); }
   .status-done { background: var(--green); }
 
-  /* Epic group */
-  .epic-group { margin-bottom: 12px; }
-  .epic-label { font-size: 11px; color: var(--purple); padding: 4px 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+  .epic-label { font-size: 11px; color: var(--purple); padding: 6px 8px 2px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+
+  .blocker-badge { color: var(--red); font-size: 11px; }
+
+  /* Epics view */
+  #epics-view { height: calc(100vh - 49px); overflow-y: auto; }
+  .epics-container { padding: 24px; max-width: 960px; margin: 0 auto; }
+  .epic-accordion { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
+  .epic-accordion-header { padding: 14px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.15s; user-select: none; }
+  .epic-accordion-header:hover { background: rgba(255,255,255,0.02); }
+  .epic-acc-left { display: flex; align-items: center; gap: 10px; }
+  .chevron { color: var(--text-muted); font-size: 10px; transition: transform 0.2s; display: inline-block; }
+  .epic-accordion.open .chevron { transform: rotate(90deg); }
+  .epic-acc-title { font-weight: 600; font-size: 14px; }
+  .epic-acc-right { display: flex; align-items: center; gap: 12px; }
+  .epic-progress { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+  .epic-progress-bar { width: 64px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .epic-progress-fill { height: 100%; background: var(--green); transition: width 0.3s; }
+  .epic-tasks { display: none; border-top: 1px solid var(--border); }
+  .epic-accordion.open .epic-tasks { display: block; }
+  .epic-task-row { padding: 10px 20px 10px 36px; border-bottom: 1px solid rgba(48,54,61,0.4); cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 13px; transition: background 0.1s; }
+  .epic-task-row:hover { background: rgba(255,255,255,0.02); }
+  .task-title-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .task-deps { font-size: 11px; color: var(--text-muted); display: flex; gap: 8px; flex-shrink: 0; }
+  .task-deps .dep-blocked-by { color: var(--red); }
+  .task-deps .dep-blocks { color: var(--orange); }
+  .subtask-toggle { font-size: 11px; color: var(--accent); cursor: pointer; background: none; border: 1px solid rgba(88,166,255,0.2); padding: 2px 8px; border-radius: 4px; flex-shrink: 0; transition: all 0.15s; }
+  .subtask-toggle:hover { background: rgba(88,166,255,0.1); }
+  .subtask-list { border-top: 1px solid rgba(48,54,61,0.3); }
+  .subtask-row { padding: 8px 20px 8px 56px; font-size: 12px; display: flex; align-items: center; gap: 8px; color: var(--text-muted); border-bottom: 1px solid rgba(48,54,61,0.2); }
+  .subtask-row:last-child { border-bottom: none; }
+  .epic-notes { font-size: 12px; color: var(--text-muted); padding: 0 20px 12px 36px; line-height: 1.4; }
 
   /* Graph view */
-  .graph-container { padding: 24px; height: calc(100vh - 65px); }
-  .graph-container svg { width: 100%; height: 100%; background: var(--surface); border-radius: 8px; border: 1px solid var(--border); }
+  .graph-container { height: calc(100vh - 49px); position: relative; overflow: hidden; }
+  .graph-container svg { width: 100%; height: 100%; background: var(--surface); cursor: grab; }
+  .graph-container svg.panning { cursor: grabbing; }
+  .graph-container svg.dragging-node { cursor: grabbing; }
+  .graph-tooltip { position: absolute; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; font-size: 12px; pointer-events: none; display: none; z-index: 10; max-width: 260px; line-height: 1.5; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+  .graph-tooltip.visible { display: block; }
+  .graph-tooltip .tt-title { font-weight: 600; margin-bottom: 4px; }
+  .graph-tooltip .tt-meta { color: var(--text-muted); font-size: 11px; }
+  .graph-controls { position: absolute; top: 16px; right: 16px; display: flex; flex-direction: column; gap: 4px; z-index: 5; }
+  .graph-btn { width: 32px; height: 32px; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); color: var(--text); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+  .graph-btn:hover { background: rgba(255,255,255,0.08); }
+  .graph-legend { position: absolute; bottom: 16px; left: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; font-size: 11px; color: var(--text-muted); z-index: 5; line-height: 1.8; }
+  .graph-legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
 
   /* Decisions */
+  #decisions-view { height: calc(100vh - 49px); overflow-y: auto; }
   .decisions-container { padding: 24px; max-width: 800px; margin: 0 auto; }
   .decision-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
-  .decision-card h3 { font-size: 15px; margin-bottom: 8px; }
+  .decision-card h3 { font-size: 14px; margin-bottom: 8px; }
   .decision-card p { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
-  .decision-meta { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+  .decision-meta { font-size: 11px; color: var(--text-muted); margin-top: 10px; display: flex; gap: 8px; align-items: center; }
 
   /* Audit drawer */
   .drawer-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; display: none; }
   .drawer-overlay.open { display: block; }
   .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 480px; background: var(--surface); border-left: 1px solid var(--border); z-index: 101; transform: translateX(100%); transition: transform 0.2s ease; overflow-y: auto; }
   .drawer.open { transform: translateX(0); }
-  .drawer-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-  .drawer-header h2 { font-size: 16px; }
+  .drawer-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--surface); z-index: 1; }
+  .drawer-header h2 { font-size: 15px; }
   .drawer-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 20px; padding: 4px 8px; }
+  .drawer-close:hover { color: var(--text); }
   .drawer-body { padding: 16px 20px; }
   .drawer-task-info { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
-  .drawer-task-info h3 { font-size: 15px; margin-bottom: 4px; }
-  .drawer-task-info .meta { font-size: 13px; color: var(--text-muted); }
-
+  .drawer-task-info h3 { font-size: 15px; margin-bottom: 6px; }
+  .drawer-task-info .meta { font-size: 12px; color: var(--text-muted); display: flex; gap: 8px; align-items: center; }
   .audit-entry { padding: 8px 0; border-bottom: 1px solid rgba(48,54,61,0.5); font-size: 13px; }
   .audit-entry:last-child { border-bottom: none; }
   .audit-field { font-weight: 600; color: var(--accent); }
-  .audit-time { color: var(--text-muted); font-size: 12px; }
-  .audit-by { font-size: 11px; padding: 1px 6px; border-radius: 3px; }
+  .audit-time { color: var(--text-muted); font-size: 11px; }
+  .audit-by { font-size: 10px; padding: 1px 6px; border-radius: 3px; }
   .audit-by-agent { background: rgba(188,140,255,0.2); color: var(--purple); }
   .audit-by-human { background: rgba(88,166,255,0.2); color: var(--accent); }
   .audit-values { margin-top: 4px; font-size: 12px; color: var(--text-muted); }
@@ -100,7 +148,7 @@
 
   .view { display: none; }
   .view.active { display: block; }
-  .hidden { display: none; }
+  .empty-state { color: var(--text-muted); text-align: center; padding: 60px 20px; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -109,6 +157,7 @@
   <h1><span>werk</span></h1>
   <div class="tabs">
     <button class="tab active" data-view="board">Board</button>
+    <button class="tab" data-view="epics">Epics</button>
     <button class="tab" data-view="graph">Graph</button>
     <button class="tab" data-view="decisions">Decisions</button>
   </div>
@@ -117,28 +166,48 @@
 
 <div id="board-view" class="view active">
   <div class="board">
-    <div class="column">
-      <div class="column-header">Open <span class="count" id="count-open">0</span></div>
-      <div class="column-cards" id="col-open"></div>
-    </div>
-    <div class="column">
-      <div class="column-header">In Progress <span class="count" id="count-in_progress">0</span></div>
-      <div class="column-cards" id="col-in_progress"></div>
-    </div>
-    <div class="column">
+    <div class="column col-blocked">
       <div class="column-header">Blocked <span class="count" id="count-blocked">0</span></div>
       <div class="column-cards" id="col-blocked"></div>
     </div>
-    <div class="column">
-      <div class="column-header">Done <span class="count" id="count-done">0</span></div>
-      <div class="column-cards" id="col-done"></div>
+    <div class="column col-ready">
+      <div class="column-header">Ready <span class="count" id="count-ready">0</span></div>
+      <div class="column-cards" id="col-ready"></div>
+    </div>
+    <div class="column col-in-progress">
+      <div class="column-header">In Progress <span class="count" id="count-in_progress">0</span></div>
+      <div class="column-cards" id="col-in_progress"></div>
+    </div>
+    <div class="column col-closed">
+      <div class="column-header">
+        <span>Closed <span class="count" id="count-closed">0</span></span>
+        <button class="today-toggle" id="today-toggle" onclick="toggleToday()">Today</button>
+      </div>
+      <div class="column-cards" id="col-closed"></div>
     </div>
   </div>
+</div>
+
+<div id="epics-view" class="view">
+  <div class="epics-container" id="epics-list"></div>
 </div>
 
 <div id="graph-view" class="view">
   <div class="graph-container">
     <svg id="graph-svg"></svg>
+    <div class="graph-tooltip" id="graph-tooltip"></div>
+    <div class="graph-controls">
+      <button class="graph-btn" onclick="graphZoom(0.8)" title="Zoom in">+</button>
+      <button class="graph-btn" onclick="graphZoom(1.25)" title="Zoom out">&minus;</button>
+      <button class="graph-btn" onclick="graphReset()" title="Reset view">&#8634;</button>
+    </div>
+    <div class="graph-legend">
+      <div><span class="graph-legend-dot" style="background:var(--text-muted)"></span> Open</div>
+      <div><span class="graph-legend-dot" style="background:var(--yellow)"></span> In Progress</div>
+      <div><span class="graph-legend-dot" style="background:var(--red)"></span> Blocked</div>
+      <div><span class="graph-legend-dot" style="background:var(--green)"></span> Done</div>
+      <div style="margin-top:4px;font-size:10px">Dashed = hierarchy &middot; Solid red = dependency</div>
+    </div>
   </div>
 </div>
 
@@ -149,7 +218,7 @@
 <div class="drawer-overlay" id="drawer-overlay"></div>
 <div class="drawer" id="drawer">
   <div class="drawer-header">
-    <h2>Task Details</h2>
+    <h2>Details</h2>
     <button class="drawer-close" id="drawer-close">&times;</button>
   </div>
   <div class="drawer-body" id="drawer-body"></div>
@@ -157,78 +226,119 @@
 
 <script>
 const API = '';
-let epics = {}, tasks = [], allTasks = [], deps = [];
+let epics = {}, epicList = [], tasks = [], allTasks = [], deps = [], decisions = [];
+let subtaskCache = {};
+let todayFilter = false;
 
 const priorityLabels = ['Critical', 'High', 'Normal', 'Low', 'Backlog'];
+const statusColors = { open: '#8b949e', in_progress: '#d29922', blocked: '#f85149', done: '#3fb950' };
+const typeRadius = { epic: 20, task: 13, subtask: 8 };
+
+// ── Data layer ──
 
 async function fetchJSON(url) {
   const res = await fetch(API + url);
   return res.json();
 }
 
+function computeColumns(taskList, depList) {
+  const taskMap = {};
+  [...Object.values(epics), ...taskList].forEach(t => taskMap[t.id] = t);
+
+  const columns = { blocked: [], ready: [], in_progress: [], closed: [] };
+  taskList.forEach(t => {
+    if (t.status === 'done') {
+      columns.closed.push(t);
+    } else if (t.status === 'in_progress') {
+      columns.in_progress.push(t);
+    } else if (t.status === 'blocked') {
+      columns.blocked.push(t);
+    } else if (t.status === 'open') {
+      const hasOpenBlocker = depList.some(d =>
+        d.downstream_id === t.id &&
+        taskMap[d.upstream_id] &&
+        taskMap[d.upstream_id].status !== 'done'
+      );
+      columns[hasOpenBlocker ? 'blocked' : 'ready'].push(t);
+    }
+  });
+  return columns;
+}
+
+async function loadSubtasks(taskId) {
+  if (subtaskCache[taskId]) return subtaskCache[taskId];
+  const subs = await fetchJSON('/api/subtasks?task=' + taskId);
+  subtaskCache[taskId] = subs;
+  return subs;
+}
+
 async function loadData() {
-  const [status, epicList, taskList, decList, depList] = await Promise.all([
+  const [status, eList, taskList, decList, depList] = await Promise.all([
     fetchJSON('/api/status'),
     fetchJSON('/api/epics'),
-    fetchJSON('/api/tasks'),
+    fetchJSON('/api/tasks?status=all'),
     fetchJSON('/api/decisions'),
     fetchJSON('/api/dependencies'),
   ]);
 
+  epics = {};
+  epicList = eList || [];
+  epicList.forEach(e => epics[e.id] = e);
+  tasks = taskList || [];
+  allTasks = [...epicList, ...tasks];
+  deps = depList || [];
+  decisions = decList || [];
+  subtaskCache = {};
+
+  const columns = computeColumns(tasks, deps);
+
   // Stats
   document.getElementById('stats').innerHTML =
-    `<span><span class="stat-val">${status.open||0}</span> open</span>` +
-    `<span><span class="stat-val">${status.in_progress||0}</span> active</span>` +
-    `<span><span class="stat-val">${status.blocked||0}</span> blocked</span>` +
-    `<span><span class="stat-val">${status.done||0}</span> done</span>`;
+    `<span><span class="stat-val">${columns.blocked.length}</span> blocked</span>` +
+    `<span><span class="stat-val">${columns.ready.length}</span> ready</span>` +
+    `<span><span class="stat-val">${columns.in_progress.length}</span> active</span>` +
+    `<span><span class="stat-val">${columns.closed.length}</span> closed</span>`;
 
-  // Index epics
-  epics = {};
-  epicList.forEach(e => epics[e.id] = e);
-  tasks = taskList;
-  allTasks = [...epicList, ...taskList];
-  deps = depList;
-
-  renderBoard(taskList, epicList);
-  renderDecisions(decList);
-
-  // Update counts
-  const counts = { open: 0, in_progress: 0, blocked: 0, done: 0 };
-  taskList.forEach(t => counts[t.status] = (counts[t.status] || 0) + 1);
-  Object.keys(counts).forEach(s => {
-    document.getElementById('count-' + s).textContent = counts[s];
-  });
+  const activeView = document.querySelector('.tab.active')?.dataset.view;
+  if (activeView === 'board' || !activeView) renderBoard(columns);
+  if (activeView === 'epics') renderEpics();
+  if (activeView === 'decisions') renderDecisions();
+  // Graph deliberately NOT auto-refreshed to preserve zoom/pan state
 }
 
-function renderBoard(tasks, epicList) {
-  const cols = { open: [], in_progress: [], blocked: [], done: [] };
+// ── Board ──
 
-  // Group tasks by epic within each status
-  const byStatusEpic = {};
-  tasks.forEach(t => {
-    const key = t.status;
-    if (!byStatusEpic[key]) byStatusEpic[key] = {};
-    const epicId = t.epic_id || 'none';
-    if (!byStatusEpic[key][epicId]) byStatusEpic[key][epicId] = [];
-    byStatusEpic[key][epicId].push(t);
-  });
+function renderBoard(columns) {
+  if (!columns) columns = computeColumns(tasks, deps);
 
-  ['open', 'in_progress', 'blocked', 'done'].forEach(status => {
-    const col = document.getElementById('col-' + status);
-    col.innerHTML = '';
-    const groups = byStatusEpic[status] || {};
+  ['blocked', 'ready', 'in_progress', 'closed'].forEach(col => {
+    const el = document.getElementById('col-' + col);
+    el.innerHTML = '';
 
-    Object.keys(groups).forEach(epicId => {
-      const epic = epics[epicId];
-      if (epic) {
+    let items = columns[col];
+    if (col === 'closed' && todayFilter) {
+      const today = new Date().toISOString().slice(0, 10);
+      items = items.filter(t => t.closed_at && t.closed_at.slice(0, 10) === today);
+    }
+
+    document.getElementById('count-' + col).textContent = items.length;
+
+    // Group by epic
+    const byEpic = {};
+    items.forEach(t => {
+      const eid = t.epic_id || '_none';
+      if (!byEpic[eid]) byEpic[eid] = [];
+      byEpic[eid].push(t);
+    });
+
+    Object.keys(byEpic).forEach(eid => {
+      if (eid !== '_none' && epics[eid]) {
         const label = document.createElement('div');
         label.className = 'epic-label';
-        label.textContent = epic.title;
-        col.appendChild(label);
+        label.textContent = epics[eid].title;
+        el.appendChild(label);
       }
-      groups[epicId].forEach(t => {
-        col.appendChild(createCard(t));
-      });
+      byEpic[eid].forEach(t => el.appendChild(createCard(t)));
     });
   });
 }
@@ -238,8 +348,9 @@ function createCard(t) {
   card.className = 'card';
   card.onclick = () => openDrawer(t.id);
 
-  const blockerCount = (t.blockers && t.blockers.length) || 0;
-  const blockerBadge = blockerCount > 0 ? `<span style="color:var(--red)">${blockerCount} blocker${blockerCount>1?'s':''}</span>` : '';
+  const blockerCount = deps.filter(d => d.downstream_id === t.id).length;
+  const blockerBadge = blockerCount > 0
+    ? `<span class="blocker-badge">${blockerCount} blocker${blockerCount > 1 ? 's' : ''}</span>` : '';
 
   card.innerHTML = `
     <div class="card-title">${esc(t.title)}</div>
@@ -247,60 +358,537 @@ function createCard(t) {
       <span class="card-id">${t.id}</span>
       <span class="priority-badge priority-${t.priority}">${priorityLabels[t.priority]}</span>
       ${blockerBadge}
-    </div>
-  `;
+    </div>`;
   return card;
 }
 
-function renderDecisions(decs) {
-  const container = document.getElementById('decisions-list');
-  if (!decs.length) {
-    container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px">No decisions recorded yet.</p>';
+function toggleToday() {
+  todayFilter = !todayFilter;
+  document.getElementById('today-toggle').classList.toggle('active', todayFilter);
+  renderBoard();
+}
+
+// ── Epics ──
+
+function renderEpics() {
+  const container = document.getElementById('epics-list');
+  if (!epicList.length) {
+    container.innerHTML = '<p class="empty-state">No epics yet.</p>';
     return;
   }
-  container.innerHTML = decs.map(d => `
+
+  container.innerHTML = epicList.map(epic => {
+    const epicTasks = tasks.filter(t => t.epic_id === epic.id);
+    const doneCount = epicTasks.filter(t => t.status === 'done').length;
+    const total = epicTasks.length;
+    const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+
+    const taskRows = epicTasks.map(t => {
+      const blockedBy = deps.filter(d => d.downstream_id === t.id).map(d => d.upstream_id);
+      const blocks = deps.filter(d => d.upstream_id === t.id).map(d => d.downstream_id);
+      const depParts = [];
+      blockedBy.forEach(id => depParts.push(`<span class="dep-blocked-by">blocked by ${id}</span>`));
+      blocks.forEach(id => depParts.push(`<span class="dep-blocks">blocks ${id}</span>`));
+
+      return `<div class="epic-task-row" onclick="openDrawer('${t.id}')">
+        <span class="status-dot status-${t.status}"></span>
+        <span class="task-title-text">${esc(t.title)}</span>
+        <span class="card-id">${t.id}</span>
+        <span class="priority-badge priority-${t.priority}">${priorityLabels[t.priority]}</span>
+        <span class="task-deps">${depParts.join('')}</span>
+        <button class="subtask-toggle" onclick="event.stopPropagation(); toggleSubtasks('${t.id}', this)">subtasks</button>
+      </div>
+      <div class="subtask-list" id="subtasks-${t.id}" style="display:none"></div>`;
+    }).join('');
+
+    const statusDot = epic.status === 'done' ? 'done' : (epicTasks.some(t => t.status === 'in_progress') ? 'in_progress' : 'open');
+
+    return `<div class="epic-accordion" id="epic-acc-${epic.id}">
+      <div class="epic-accordion-header" onclick="toggleEpicAcc('${epic.id}')">
+        <div class="epic-acc-left">
+          <span class="chevron">&#9654;</span>
+          <span class="status-dot status-${statusDot}"></span>
+          <span class="epic-acc-title">${esc(epic.title)}</span>
+        </div>
+        <div class="epic-acc-right">
+          <span class="epic-progress">
+            ${doneCount}/${total}
+            <span class="epic-progress-bar"><span class="epic-progress-fill" style="width:${pct}%"></span></span>
+          </span>
+          <span class="priority-badge priority-${epic.priority}">${priorityLabels[epic.priority]}</span>
+        </div>
+      </div>
+      ${epic.notes ? `<div class="epic-notes" style="display:none" id="epic-notes-${epic.id}">${esc(epic.notes)}</div>` : ''}
+      <div class="epic-tasks">${taskRows || '<div class="empty-state" style="padding:20px">No tasks in this epic.</div>'}</div>
+    </div>`;
+  }).join('');
+}
+
+function toggleEpicAcc(epicId) {
+  const el = document.getElementById('epic-acc-' + epicId);
+  el.classList.toggle('open');
+  const notes = document.getElementById('epic-notes-' + epicId);
+  if (notes) notes.style.display = el.classList.contains('open') ? 'block' : 'none';
+}
+
+async function toggleSubtasks(taskId, btn) {
+  const list = document.getElementById('subtasks-' + taskId);
+  if (list.style.display === 'block') {
+    list.style.display = 'none';
+    return;
+  }
+  list.innerHTML = '<div class="subtask-row" style="color:var(--text-muted)">Loading...</div>';
+  list.style.display = 'block';
+
+  const subs = await loadSubtasks(taskId);
+  if (!subs.length) {
+    list.innerHTML = '<div class="subtask-row" style="color:var(--text-muted)">No subtasks</div>';
+  } else {
+    list.innerHTML = subs.map(s => `
+      <div class="subtask-row">
+        <span class="status-dot status-${s.status}"></span>
+        <span style="flex:1">${esc(s.title)}</span>
+        <span class="card-id">${s.id}</span>
+      </div>`).join('');
+  }
+}
+
+// ── Decisions ──
+
+function renderDecisions() {
+  const container = document.getElementById('decisions-list');
+  if (!decisions.length) {
+    container.innerHTML = '<p class="empty-state">No decisions recorded yet.</p>';
+    return;
+  }
+  container.innerHTML = decisions.map(d => `
     <div class="decision-card">
       <h3>${esc(d.summary)}</h3>
       ${d.rationale ? `<p>${esc(d.rationale)}</p>` : ''}
       <div class="decision-meta">
-        <span class="card-id">${d.id}</span> &middot;
-        ${d.created_at} &middot;
+        <span class="card-id">${d.id}</span>
+        <span>${d.created_at}</span>
         <span class="audit-by audit-by-${d.created_by}">${d.created_by}</span>
       </div>
-    </div>
-  `).join('');
+    </div>`).join('');
 }
 
-async function openDrawer(taskId) {
-  const [task, audit] = await Promise.all([
-    fetchJSON('/api/tasks?status=all').then(ts => ts.find(t => t.id === taskId)),
-    fetchJSON('/api/audit/' + taskId),
-  ]);
+// ── Graph ──
 
-  const body = document.getElementById('drawer-body');
+let graphViewBox = null;
+let graphNodes = null;
+let graphLinks = null;
 
-  // If we couldn't find the task in tasks, try epics
-  let info = task;
-  if (!info) {
-    const ep = epics[taskId];
-    if (ep) info = ep;
+function renderGraph() {
+  const svg = document.getElementById('graph-svg');
+  const rect = svg.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  svg.innerHTML = '';
+
+  if (!allTasks.length) {
+    svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="#8b949e" font-size="14">No tasks to display</text>';
+    return;
   }
 
+  // Build nodes with hierarchical initial layout
+  const nodeMap = {};
+  const epicNodes = [], taskNodes = [], subtaskNodes = [];
+
+  allTasks.forEach(t => {
+    const node = {
+      id: t.id, title: t.title, status: t.status, type: t.type, priority: t.priority,
+      notes: t.notes,
+      x: 0, y: 0, vx: 0, vy: 0
+    };
+    nodeMap[t.id] = node;
+    if (t.type === 'epic') epicNodes.push(node);
+    else if (t.type === 'task') taskNodes.push(node);
+    else subtaskNodes.push(node);
+  });
+
+  const nodes = [...epicNodes, ...taskNodes, ...subtaskNodes];
+
+  // Hierarchical initial positions
+  const cx = W / 2, margin = 60;
+  function spreadRow(arr, y) {
+    const spacing = Math.min(160, (W - margin * 2) / Math.max(arr.length, 1));
+    const startX = cx - (arr.length - 1) * spacing / 2;
+    arr.forEach((n, i) => { n.x = startX + i * spacing; n.y = y; });
+  }
+  spreadRow(epicNodes, H * 0.18);
+  spreadRow(taskNodes, H * 0.50);
+  spreadRow(subtaskNodes, H * 0.82);
+
+  // Nudge children near their parents
+  taskNodes.forEach(n => {
+    const t = allTasks.find(a => a.id === n.id);
+    const pid = t?.epic_id;
+    if (pid && nodeMap[pid]) { n.x = nodeMap[pid].x + (Math.random() - 0.5) * 80; }
+  });
+  subtaskNodes.forEach(n => {
+    const t = allTasks.find(a => a.id === n.id);
+    const pid = t?.task_id;
+    if (pid && nodeMap[pid]) { n.x = nodeMap[pid].x + (Math.random() - 0.5) * 40; }
+  });
+
+  // Build links
+  const links = [];
+  allTasks.forEach(t => {
+    const pid = t.epic_id || t.task_id;
+    if (pid && nodeMap[pid] && nodeMap[t.id]) {
+      links.push({ source: nodeMap[pid], target: nodeMap[t.id], type: 'hierarchy' });
+    }
+  });
+  deps.forEach(d => {
+    if (nodeMap[d.upstream_id] && nodeMap[d.downstream_id]) {
+      links.push({ source: nodeMap[d.upstream_id], target: nodeMap[d.downstream_id], type: 'dependency' });
+    }
+  });
+
+  // Force simulation
+  for (let iter = 0; iter < 300; iter++) {
+    const alpha = 1 - iter / 300;
+    // Repulsion
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        let dx = nodes[j].x - nodes[i].x;
+        let dy = nodes[j].y - nodes[i].y;
+        let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        let force = 4000 / (dist * dist) * alpha;
+        nodes[i].vx -= dx / dist * force;
+        nodes[i].vy -= dy / dist * force;
+        nodes[j].vx += dx / dist * force;
+        nodes[j].vy += dy / dist * force;
+      }
+    }
+    // Attraction along links
+    links.forEach(l => {
+      let dx = l.target.x - l.source.x;
+      let dy = l.target.y - l.source.y;
+      let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const rest = l.type === 'hierarchy' ? 120 : 160;
+      let force = (dist - rest) * 0.008 * alpha;
+      l.source.vx += dx / dist * force;
+      l.source.vy += dy / dist * force;
+      l.target.vx -= dx / dist * force;
+      l.target.vy -= dy / dist * force;
+    });
+    // Layer gravity (keep hierarchy vertical)
+    nodes.forEach(n => {
+      const targetY = n.type === 'epic' ? H * 0.18 : n.type === 'task' ? H * 0.50 : H * 0.82;
+      n.vy += (targetY - n.y) * 0.003 * alpha;
+    });
+    // Center gravity
+    nodes.forEach(n => {
+      n.vx += (cx - n.x) * 0.0005;
+      n.x += n.vx * 0.4;
+      n.y += n.vy * 0.4;
+      n.vx *= 0.85;
+      n.vy *= 0.85;
+      n.x = Math.max(40, Math.min(W - 40, n.x));
+      n.y = Math.max(40, Math.min(H - 40, n.y));
+    });
+  }
+
+  graphNodes = nodes;
+  graphLinks = links;
+  graphViewBox = { x: 0, y: 0, w: W, h: H };
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  // Defs
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  defs.innerHTML = `
+    <marker id="arrow-dep" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,3 L0,6" fill="${statusColors.blocked}"/>
+    </marker>
+    <marker id="arrow-hier" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="6" markerHeight="4" orient="auto">
+      <path d="M0,0 L10,3 L0,6" fill="#30363d"/>
+    </marker>`;
+  svg.appendChild(defs);
+
+  // Render edges
+  links.forEach((l, i) => {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.id = 'edge-' + i;
+    line.setAttribute('x1', l.source.x);
+    line.setAttribute('y1', l.source.y);
+    line.setAttribute('x2', l.target.x);
+    line.setAttribute('y2', l.target.y);
+    if (l.type === 'dependency') {
+      line.setAttribute('stroke', statusColors.blocked);
+      line.setAttribute('stroke-width', '2');
+      line.setAttribute('marker-end', 'url(#arrow-dep)');
+    } else {
+      line.setAttribute('stroke', '#30363d');
+      line.setAttribute('stroke-width', '1');
+      line.setAttribute('stroke-dasharray', '4,4');
+      line.setAttribute('marker-end', 'url(#arrow-hier)');
+    }
+    svg.appendChild(line);
+  });
+
+  // Render nodes
+  nodes.forEach(n => {
+    const r = typeRadius[n.type] || 13;
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.dataset.nodeId = n.id;
+    g.style.cursor = 'pointer';
+
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', n.x);
+    circle.setAttribute('cy', n.y);
+    circle.setAttribute('r', r);
+    circle.setAttribute('fill', statusColors[n.status] || '#8b949e');
+    circle.setAttribute('stroke', n.type === 'epic' ? '#e6edf3' : 'rgba(230,237,243,0.3)');
+    circle.setAttribute('stroke-width', n.type === 'epic' ? '2.5' : '1');
+    g.appendChild(circle);
+
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', n.x);
+    text.setAttribute('y', n.y + r + 14);
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('fill', '#8b949e');
+    text.setAttribute('font-size', n.type === 'epic' ? '12' : '10');
+    text.setAttribute('font-weight', n.type === 'epic' ? '600' : '400');
+    text.textContent = n.title.length > 24 ? n.title.slice(0, 22) + '...' : n.title;
+    g.appendChild(text);
+
+    svg.appendChild(g);
+  });
+
+  // Attach interaction (only once — uses graphNodes/graphLinks globals)
+  setupGraphInteraction(svg, nodes, links);
+}
+
+// Graph interaction — stored handlers so we can remove on re-render
+let _graphHandlers = null;
+
+function setupGraphInteraction(svg, nodes, links) {
+  // Remove old listeners if any
+  if (_graphHandlers) {
+    svg.removeEventListener('mousedown', _graphHandlers.mousedown);
+    svg.removeEventListener('mousemove', _graphHandlers.mousemove);
+    svg.removeEventListener('mouseup', _graphHandlers.mouseup);
+    svg.removeEventListener('mouseleave', _graphHandlers.mouseleave);
+    svg.removeEventListener('click', _graphHandlers.click);
+    svg.removeEventListener('dblclick', _graphHandlers.dblclick);
+    svg.removeEventListener('wheel', _graphHandlers.wheel);
+  }
+
+  let dragNode = null;
+  let dragOffset = { x: 0, y: 0 };
+  let isPanning = false;
+  let panStart = null;
+  let didDrag = false; // tracks if mouse actually moved during drag/pan
+
+  function svgCoords(e) {
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return { x: 0, y: 0 };
+    const inv = ctm.inverse();
+    return { x: e.clientX * inv.a + inv.e, y: e.clientY * inv.d + inv.f };
+  }
+
+  function updateEdges(node) {
+    links.forEach((l, i) => {
+      if (l.source.id === node.id || l.target.id === node.id) {
+        const line = document.getElementById('edge-' + i);
+        if (line) {
+          line.setAttribute('x1', l.source.x);
+          line.setAttribute('y1', l.source.y);
+          line.setAttribute('x2', l.target.x);
+          line.setAttribute('y2', l.target.y);
+        }
+      }
+    });
+  }
+
+  const handlers = {};
+
+  handlers.mousedown = e => {
+    didDrag = false;
+    const nodeG = e.target.closest('g[data-node-id]');
+    if (nodeG) {
+      const nid = nodeG.dataset.nodeId;
+      dragNode = nodes.find(n => n.id === nid);
+      if (dragNode) {
+        const pt = svgCoords(e);
+        dragOffset = { x: pt.x - dragNode.x, y: pt.y - dragNode.y };
+        svg.classList.add('dragging-node');
+        e.preventDefault();
+      }
+    } else {
+      isPanning = true;
+      panStart = { mx: e.clientX, my: e.clientY, vx: graphViewBox.x, vy: graphViewBox.y };
+      svg.classList.add('panning');
+      e.preventDefault();
+    }
+  };
+
+  handlers.mousemove = e => {
+    if (dragNode) {
+      didDrag = true;
+      const pt = svgCoords(e);
+      dragNode.x = pt.x - dragOffset.x;
+      dragNode.y = pt.y - dragOffset.y;
+      const g = svg.querySelector(`g[data-node-id="${dragNode.id}"]`);
+      if (g) {
+        g.querySelector('circle').setAttribute('cx', dragNode.x);
+        g.querySelector('circle').setAttribute('cy', dragNode.y);
+        const txt = g.querySelector('text');
+        txt.setAttribute('x', dragNode.x);
+        txt.setAttribute('y', dragNode.y + (typeRadius[dragNode.type] || 13) + 14);
+      }
+      updateEdges(dragNode);
+    }
+    if (isPanning && panStart) {
+      const dx = e.clientX - panStart.mx;
+      const dy = e.clientY - panStart.my;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) didDrag = true;
+      const scale = graphViewBox.w / svg.getBoundingClientRect().width;
+      graphViewBox.x = panStart.vx - dx * scale;
+      graphViewBox.y = panStart.vy - dy * scale;
+      svg.setAttribute('viewBox', `${graphViewBox.x} ${graphViewBox.y} ${graphViewBox.w} ${graphViewBox.h}`);
+    }
+
+    // Tooltip
+    const nodeG = e.target.closest('g[data-node-id]');
+    const tooltip = document.getElementById('graph-tooltip');
+    if (nodeG && !dragNode) {
+      const nid = nodeG.dataset.nodeId;
+      const n = nodes.find(nn => nn.id === nid);
+      if (n) {
+        tooltip.innerHTML = `<div class="tt-title">${esc(n.title)}</div>
+          <div class="tt-meta">${n.id} &middot; ${n.type} &middot; ${n.status} &middot; ${priorityLabels[n.priority]}</div>
+          ${n.notes ? `<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">${esc(n.notes)}</div>` : ''}`;
+        const containerRect = svg.closest('.graph-container').getBoundingClientRect();
+        tooltip.style.left = (e.clientX - containerRect.left + 12) + 'px';
+        tooltip.style.top = (e.clientY - containerRect.top - 10) + 'px';
+        tooltip.classList.add('visible');
+      }
+    } else {
+      tooltip.classList.remove('visible');
+    }
+  };
+
+  handlers.mouseup = () => {
+    dragNode = null;
+    isPanning = false;
+    panStart = null;
+    svg.classList.remove('dragging-node');
+    svg.classList.remove('panning');
+  };
+
+  handlers.mouseleave = () => {
+    document.getElementById('graph-tooltip').classList.remove('visible');
+  };
+
+  handlers.click = e => {
+    if (didDrag) return; // don't open drawer after drag/pan
+    const nodeG = e.target.closest('g[data-node-id]');
+    if (nodeG) openDrawer(nodeG.dataset.nodeId);
+  };
+
+  handlers.dblclick = e => {
+    const nodeG = e.target.closest('g[data-node-id]');
+    if (!nodeG) return;
+    const nid = nodeG.dataset.nodeId;
+    const n = nodes.find(nn => nn.id === nid);
+    if (!n || n.type !== 'epic') return;
+
+    // Find cluster: the epic + its child tasks
+    const cluster = [n];
+    nodes.forEach(nn => {
+      const t = allTasks.find(a => a.id === nn.id);
+      if (t && t.epic_id === nid) cluster.push(nn);
+    });
+
+    const padding = 80;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    cluster.forEach(c => {
+      minX = Math.min(minX, c.x); minY = Math.min(minY, c.y);
+      maxX = Math.max(maxX, c.x); maxY = Math.max(maxY, c.y);
+    });
+    graphViewBox = {
+      x: minX - padding, y: minY - padding,
+      w: Math.max(maxX - minX + padding * 2, 200),
+      h: Math.max(maxY - minY + padding * 2, 200)
+    };
+    svg.setAttribute('viewBox', `${graphViewBox.x} ${graphViewBox.y} ${graphViewBox.w} ${graphViewBox.h}`);
+  };
+
+  handlers.wheel = e => {
+    e.preventDefault();
+    const scale = e.deltaY > 0 ? 1.1 : 0.9;
+    const pt = svgCoords(e);
+    graphViewBox.x = pt.x - (pt.x - graphViewBox.x) * scale;
+    graphViewBox.y = pt.y - (pt.y - graphViewBox.y) * scale;
+    graphViewBox.w *= scale;
+    graphViewBox.h *= scale;
+    svg.setAttribute('viewBox', `${graphViewBox.x} ${graphViewBox.y} ${graphViewBox.w} ${graphViewBox.h}`);
+  };
+
+  svg.addEventListener('mousedown', handlers.mousedown);
+  svg.addEventListener('mousemove', handlers.mousemove);
+  svg.addEventListener('mouseup', handlers.mouseup);
+  svg.addEventListener('mouseleave', handlers.mouseleave);
+  svg.addEventListener('click', handlers.click);
+  svg.addEventListener('dblclick', handlers.dblclick);
+  svg.addEventListener('wheel', handlers.wheel, { passive: false });
+
+  _graphHandlers = handlers;
+}
+
+function graphZoom(factor) {
+  const svg = document.getElementById('graph-svg');
+  if (!graphViewBox) return;
+  const cx = graphViewBox.x + graphViewBox.w / 2;
+  const cy = graphViewBox.y + graphViewBox.h / 2;
+  graphViewBox.w *= factor;
+  graphViewBox.h *= factor;
+  graphViewBox.x = cx - graphViewBox.w / 2;
+  graphViewBox.y = cy - graphViewBox.h / 2;
+  svg.setAttribute('viewBox', `${graphViewBox.x} ${graphViewBox.y} ${graphViewBox.w} ${graphViewBox.h}`);
+}
+
+function graphReset() {
+  const svg = document.getElementById('graph-svg');
+  const rect = svg.getBoundingClientRect();
+  graphViewBox = { x: 0, y: 0, w: rect.width, h: rect.height };
+  svg.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
+}
+
+// ── Drawer ──
+
+async function openDrawer(taskId) {
+  const info = allTasks.find(t => t.id === taskId);
+  const audit = await fetchJSON('/api/audit/' + taskId);
+
+  const body = document.getElementById('drawer-body');
   let html = '';
+
   if (info) {
+    const blockedBy = deps.filter(d => d.downstream_id === taskId).map(d => d.upstream_id);
+    const blocks = deps.filter(d => d.upstream_id === taskId).map(d => d.downstream_id);
+    const depHtml = [
+      ...blockedBy.map(id => `<span style="color:var(--red)">blocked by ${id}</span>`),
+      ...blocks.map(id => `<span style="color:var(--orange)">blocks ${id}</span>`)
+    ].join(' &middot; ');
+
     html += `<div class="drawer-task-info">
       <h3>${esc(info.title)}</h3>
       <div class="meta">
-        <span class="card-id">${info.id}</span> &middot;
-        <span class="status-dot status-${info.status}"></span> ${info.status} &middot;
-        <span class="priority-badge priority-${info.priority}">${priorityLabels[info.priority]}</span>
+        <span class="status-dot status-${info.status}"></span> ${info.status}
+        &middot; <span class="priority-badge priority-${info.priority}">${priorityLabels[info.priority]}</span>
+        &middot; <span class="card-id">${info.id}</span>
+        &middot; ${info.type}
       </div>
-      ${info.notes ? `<p style="margin-top:8px;font-size:13px;color:var(--text-muted)">${esc(info.notes)}</p>` : ''}
+      ${depHtml ? `<div style="margin-top:6px;font-size:12px">${depHtml}</div>` : ''}
+      ${info.notes ? `<p style="margin-top:8px;font-size:13px;color:var(--text-muted);line-height:1.5">${esc(info.notes)}</p>` : ''}
     </div>`;
   }
 
   html += '<h3 style="margin-bottom:12px;font-size:14px">Audit Trail</h3>';
-  if (!audit.length) {
+  if (!audit || !audit.length) {
     html += '<p style="color:var(--text-muted);font-size:13px">No audit entries.</p>';
   } else {
     audit.forEach(e => {
@@ -330,8 +918,10 @@ function closeDrawer() {
 
 document.getElementById('drawer-close').onclick = closeDrawer;
 document.getElementById('drawer-overlay').onclick = closeDrawer;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
 
-// Tabs
+// ── Tabs ──
+
 document.querySelectorAll('.tab').forEach(tab => {
   tab.onclick = () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -339,147 +929,13 @@ document.querySelectorAll('.tab').forEach(tab => {
     tab.classList.add('active');
     document.getElementById(tab.dataset.view + '-view').classList.add('active');
     if (tab.dataset.view === 'graph') renderGraph();
+    if (tab.dataset.view === 'epics') renderEpics();
+    if (tab.dataset.view === 'board') renderBoard();
+    if (tab.dataset.view === 'decisions') renderDecisions();
   };
 });
 
-// Graph view using simple SVG (no D3 dependency to keep it self-contained)
-function renderGraph() {
-  const svg = document.getElementById('graph-svg');
-  const rect = svg.getBoundingClientRect();
-  const W = rect.width, H = rect.height;
-  svg.innerHTML = '';
-
-  if (!allTasks.length) {
-    svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="#8b949e" font-size="14">No tasks to display</text>';
-    return;
-  }
-
-  // Build nodes and links
-  const nodeMap = {};
-  const nodes = allTasks.map((t, i) => {
-    const node = { id: t.id, title: t.title, status: t.status, type: t.type, priority: t.priority,
-      x: W/2 + (Math.random() - 0.5) * W * 0.6,
-      y: H/2 + (Math.random() - 0.5) * H * 0.6,
-      vx: 0, vy: 0 };
-    nodeMap[t.id] = node;
-    return node;
-  });
-
-  // Parent-child links
-  const links = [];
-  allTasks.forEach(t => {
-    const pid = t.epic_id || t.task_id;
-    if (pid && nodeMap[pid]) {
-      links.push({ source: nodeMap[pid], target: nodeMap[t.id], type: 'hierarchy' });
-    }
-  });
-  // Dependency links
-  deps.forEach(d => {
-    if (nodeMap[d.upstream_id] && nodeMap[d.downstream_id]) {
-      links.push({ source: nodeMap[d.upstream_id], target: nodeMap[d.downstream_id], type: 'dependency' });
-    }
-  });
-
-  const statusColors = { open: '#8b949e', in_progress: '#d29922', blocked: '#f85149', done: '#3fb950' };
-  const typeRadius = { epic: 18, task: 12, subtask: 8 };
-
-  // Simple force simulation
-  function simulate() {
-    for (let iter = 0; iter < 200; iter++) {
-      // Repulsion
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i+1; j < nodes.length; j++) {
-          let dx = nodes[j].x - nodes[i].x;
-          let dy = nodes[j].y - nodes[i].y;
-          let dist = Math.sqrt(dx*dx + dy*dy) || 1;
-          let force = 2000 / (dist * dist);
-          nodes[i].vx -= dx/dist * force;
-          nodes[i].vy -= dy/dist * force;
-          nodes[j].vx += dx/dist * force;
-          nodes[j].vy += dy/dist * force;
-        }
-      }
-      // Attraction along links
-      links.forEach(l => {
-        let dx = l.target.x - l.source.x;
-        let dy = l.target.y - l.source.y;
-        let dist = Math.sqrt(dx*dx + dy*dy) || 1;
-        let force = (dist - 80) * 0.01;
-        l.source.vx += dx/dist * force;
-        l.source.vy += dy/dist * force;
-        l.target.vx -= dx/dist * force;
-        l.target.vy -= dy/dist * force;
-      });
-      // Center gravity
-      nodes.forEach(n => {
-        n.vx += (W/2 - n.x) * 0.001;
-        n.vy += (H/2 - n.y) * 0.001;
-        n.x += n.vx * 0.3;
-        n.y += n.vy * 0.3;
-        n.vx *= 0.9;
-        n.vy *= 0.9;
-        n.x = Math.max(30, Math.min(W-30, n.x));
-        n.y = Math.max(30, Math.min(H-30, n.y));
-      });
-    }
-  }
-  simulate();
-
-  // Render
-  // Arrow marker
-  svg.innerHTML = `<defs>
-    <marker id="arrow" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto">
-      <path d="M0,0 L10,3 L0,6" fill="#f85149"/>
-    </marker>
-    <marker id="arrow-hier" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto">
-      <path d="M0,0 L10,3 L0,6" fill="#30363d"/>
-    </marker>
-  </defs>`;
-
-  // Links
-  links.forEach(l => {
-    const isDep = l.type === 'dependency';
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', l.source.x);
-    line.setAttribute('y1', l.source.y);
-    line.setAttribute('x2', l.target.x);
-    line.setAttribute('y2', l.target.y);
-    line.setAttribute('stroke', isDep ? '#f85149' : '#30363d');
-    line.setAttribute('stroke-width', isDep ? '2' : '1');
-    line.setAttribute('stroke-dasharray', isDep ? '' : '4,4');
-    line.setAttribute('marker-end', isDep ? 'url(#arrow)' : 'url(#arrow-hier)');
-    svg.appendChild(line);
-  });
-
-  // Nodes
-  nodes.forEach(n => {
-    const r = typeRadius[n.type] || 12;
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    g.style.cursor = 'pointer';
-    g.onclick = () => openDrawer(n.id);
-
-    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    circle.setAttribute('cx', n.x);
-    circle.setAttribute('cy', n.y);
-    circle.setAttribute('r', r);
-    circle.setAttribute('fill', statusColors[n.status] || '#8b949e');
-    circle.setAttribute('opacity', '0.8');
-    circle.setAttribute('stroke', '#e6edf3');
-    circle.setAttribute('stroke-width', n.type === 'epic' ? '2' : '1');
-    g.appendChild(circle);
-
-    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    text.setAttribute('x', n.x);
-    text.setAttribute('y', n.y + r + 14);
-    text.setAttribute('text-anchor', 'middle');
-    text.setAttribute('fill', '#8b949e');
-    text.setAttribute('font-size', '10');
-    text.textContent = n.title.length > 20 ? n.title.slice(0,18) + '...' : n.title;
-    g.appendChild(text);
-
-    svg.appendChild(g);
-  });
-}
+// ── Utilities ──
 
 function esc(s) {
   if (!s) return '';
@@ -488,9 +944,9 @@ function esc(s) {
   return d.innerHTML;
 }
 
-// Load on start
+// ── Init ──
+
 loadData();
-// Auto-refresh every 5 seconds
 setInterval(loadData, 5000);
 </script>
 </body>
