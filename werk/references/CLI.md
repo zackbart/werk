@@ -95,6 +95,18 @@ werk session show <id>
 werk audit <task-id>                               Full change history
 ```
 
+## Log
+
+```
+werk log [-n <limit>] [--verbose]                  Recent project activity
+```
+
+Shows a reverse-chronological feed of high-signal events: task status changes (created, started, closed, blocked), decisions, and session start/end with summaries.
+
+- Default limit is 20 entries
+- `--verbose` / `-v` includes notes, decision rationale, and session touched-tasks
+- Use `--pretty` for human-readable one-line-per-event format
+
 ## Output format
 
 Every command returns JSON. Arrays for list commands, objects for show/create/update.

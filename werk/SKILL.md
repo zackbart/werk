@@ -43,9 +43,12 @@ This creates `.werk/tasks.db`. All commands automatically walk up the directory 
 
 ```
 werk session start --agent
+werk log --pretty --agent              # catch up on recent activity
 werk task ready --agent
 werk task list --status in_progress --agent
 ```
+
+Use `werk log --verbose --pretty -n 10` if you need more context (notes, rationale, session details).
 
 **End every session:**
 
@@ -258,11 +261,13 @@ Migration is lossy by design — messages, labels, molecules, wisps, and named d
 ## Quick reference
 
 ```
-werk task ready                       What can I work on right now?
-werk task list --status in_progress   What is currently in flight?
-werk epic list                        What features exist?
-werk dep list <id>                    What blocks this / what does this block?
-werk audit <id>                       Full history of a task
-werk status                           Project summary
-werk decision list                    Architectural decision log
+werk log --pretty                    What happened recently?
+werk log --pretty --verbose -n 10    Detailed recent activity
+werk task ready                      What can I work on right now?
+werk task list --status in_progress  What is currently in flight?
+werk epic list                       What features exist?
+werk dep list <id>                   What blocks this / what does this block?
+werk audit <id>                      Full history of a single task
+werk status                          Project summary
+werk decision list                   Architectural decision log
 ```

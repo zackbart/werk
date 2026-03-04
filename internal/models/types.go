@@ -93,6 +93,14 @@ type DepInfo struct {
 	Blocks    []string `json:"blocks"`
 }
 
+type LogEntry struct {
+	Timestamp time.Time `json:"timestamp"`
+	Event     string    `json:"event"`
+	ID        string    `json:"id"`
+	Title     string    `json:"title"`
+	Detail    *string   `json:"detail,omitempty"`
+}
+
 type StatusSummary struct {
 	Open       int `json:"open"`
 	InProgress int `json:"in_progress"`

@@ -134,6 +134,7 @@ func NewRootCmd() *cobra.Command {
 		newDecisionCmd(),
 		newSessionCmd(),
 		newAuditCmd(),
+		newLogCmd(),
 		newServeCmd(),
 	)
 

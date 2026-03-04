@@ -75,6 +75,7 @@ werk dep add|remove|list
 werk decision create|list|show
 werk session start|end|list|show
 werk audit <task-id>
+werk log [-n 20] [--verbose]
 
 werk serve up [--port 8080]            Start web UI
 werk serve down                        Stop web UI

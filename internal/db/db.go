@@ -676,6 +676,90 @@ func (d *DB) GetStatus() (*models.StatusSummary, error) {
 	return s, nil
 }
 
+// --- Log ---
+
+func (d *DB) GetLog(limit int, verbose bool) ([]models.LogEntry, error) {
+	// Union of high-signal events: status changes, decisions, session start/end
+	query := `
+		SELECT timestamp, event, id, title, detail FROM (
+			-- Task/epic/subtask status changes (started, closed, blocked)
+			SELECT a.changed_at AS timestamp,
+				CASE a.new_value
+					WHEN 'in_progress' THEN 'started'
+					WHEN 'done' THEN 'closed'
+					WHEN 'blocked' THEN 'blocked'
+				END AS event,
+				t.id AS id,
+				t.type || ': ' || t.title AS title,
+				CASE WHEN ? THEN t.notes ELSE NULL END AS detail
+			FROM audit a
+			JOIN tasks t ON a.task_id = t.id
+			WHERE a.field = 'status' AND a.new_value IN ('in_progress', 'done', 'blocked')
+
+			UNION ALL
+
+			-- Task/epic/subtask creation
+			SELECT a.changed_at AS timestamp,
+				'created' AS event,
+				t.id AS id,
+				t.type || ': ' || t.title AS title,
+				CASE WHEN ? THEN t.notes ELSE NULL END AS detail
+			FROM audit a
+			JOIN tasks t ON a.task_id = t.id
+			WHERE a.field = 'status' AND a.old_value IS NULL AND a.new_value = 'open'
+
+			UNION ALL
+
+			-- Decisions
+			SELECT d.created_at AS timestamp,
+				'decision' AS event,
+				d.id AS id,
+				d.summary AS title,
+				CASE WHEN ? THEN d.rationale ELSE NULL END AS detail
+			FROM decisions d
+
+			UNION ALL
+
+			-- Session starts
+			SELECT s.started_at AS timestamp,
+				'session_start' AS event,
+				s.id AS id,
+				'Session started' AS title,
+				NULL AS detail
+			FROM sessions s
+
+			UNION ALL
+
+			-- Session ends (with summary)
+			SELECT s.ended_at AS timestamp,
+				'session_end' AS event,
+				s.id AS id,
+				COALESCE(s.summary, 'Session ended') AS title,
+				CASE WHEN ? THEN s.tasks_touched ELSE NULL END AS detail
+			FROM sessions s
+			WHERE s.ended_at IS NOT NULL
+		)
+		ORDER BY timestamp DESC
+		LIMIT ?
+	`
+
+	rows, err := d.conn.Query(query, verbose, verbose, verbose, verbose, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []models.LogEntry
+	for rows.Next() {
+		e := models.LogEntry{}
+		var ts string
+		rows.Scan(&ts, &e.Event, &e.ID, &e.Title, &e.Detail)
+		e.Timestamp = parseTime(ts)
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
 // --- Helpers ---
 
 func parseTime(s string) time.Time {
