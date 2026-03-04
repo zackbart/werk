@@ -160,7 +160,7 @@ func Start(db *sql.DB, port int) error {
 
 	// Serve web UI
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		data, err := webFS.ReadFile("web/index.html")
+		data, err := webFS.ReadFile("index.html")
 		if err != nil {
 			http.Error(w, "web UI not found", 500)
 			return
