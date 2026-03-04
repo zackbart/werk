@@ -59,7 +59,7 @@ func Start(db *sql.DB, port int) error {
 	mux.HandleFunc("/api/subtasks", func(w http.ResponseWriter, r *http.Request) {
 		taskID := r.URL.Query().Get("task")
 		if taskID == "" {
-			writeJSON(w, []interface{}{})
+			writeJSON(w, queryTasks(db, "subtask", ""))
 			return
 		}
 		query := "SELECT id, parent_id, type, title, status, priority, notes, created_at, updated_at, closed_at FROM tasks WHERE type = 'subtask' AND parent_id = ? ORDER BY created_at ASC"

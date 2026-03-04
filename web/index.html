@@ -202,11 +202,11 @@
       <button class="graph-btn" onclick="graphReset()" title="Reset view">&#8634;</button>
     </div>
     <div class="graph-legend">
-      <div><span class="graph-legend-dot" style="background:var(--text-muted)"></span> Open</div>
-      <div><span class="graph-legend-dot" style="background:var(--yellow)"></span> In Progress</div>
-      <div><span class="graph-legend-dot" style="background:var(--red)"></span> Blocked</div>
-      <div><span class="graph-legend-dot" style="background:var(--green)"></span> Done</div>
-      <div style="margin-top:4px;font-size:10px">Dashed = hierarchy &middot; Solid red = dependency</div>
+      <div><span class="graph-legend-dot" style="background:var(--text-muted)"></span> Open
+        <span class="graph-legend-dot" style="background:var(--yellow);margin-left:8px"></span> Active
+        <span class="graph-legend-dot" style="background:var(--red);margin-left:8px"></span> Blocked
+        <span class="graph-legend-dot" style="background:var(--green);margin-left:8px"></span> Done</div>
+      <div style="margin-top:4px;font-size:10px">Dashed = parent-child &middot; Red curve = blocks</div>
     </div>
   </div>
 </div>
@@ -226,13 +226,11 @@
 
 <script>
 const API = '';
-let epics = {}, epicList = [], tasks = [], allTasks = [], deps = [], decisions = [];
-let subtaskCache = {};
+let epics = {}, epicList = [], tasks = [], allTasks = [], allSubtasks = [], deps = [], decisions = [];
 let todayFilter = false;
 
 const priorityLabels = ['Critical', 'High', 'Normal', 'Low', 'Backlog'];
 const statusColors = { open: '#8b949e', in_progress: '#d29922', blocked: '#f85149', done: '#3fb950' };
-const typeRadius = { epic: 20, task: 13, subtask: 8 };
 
 // ── Data layer ──
 
@@ -265,18 +263,12 @@ function computeColumns(taskList, depList) {
   return columns;
 }
 
-async function loadSubtasks(taskId) {
-  if (subtaskCache[taskId]) return subtaskCache[taskId];
-  const subs = await fetchJSON('/api/subtasks?task=' + taskId);
-  subtaskCache[taskId] = subs;
-  return subs;
-}
-
 async function loadData() {
-  const [status, eList, taskList, decList, depList] = await Promise.all([
+  const [status, eList, taskList, subList, decList, depList] = await Promise.all([
     fetchJSON('/api/status'),
     fetchJSON('/api/epics'),
     fetchJSON('/api/tasks?status=all'),
+    fetchJSON('/api/subtasks'),
     fetchJSON('/api/decisions'),
     fetchJSON('/api/dependencies'),
   ]);
@@ -285,10 +277,10 @@ async function loadData() {
   epicList = eList || [];
   epicList.forEach(e => epics[e.id] = e);
   tasks = taskList || [];
-  allTasks = [...epicList, ...tasks];
+  allSubtasks = subList || [];
+  allTasks = [...epicList, ...tasks, ...allSubtasks];
   deps = depList || [];
   decisions = decList || [];
-  subtaskCache = {};
 
   const columns = computeColumns(tasks, deps);
 
@@ -372,12 +364,14 @@ function toggleToday() {
 
 function renderEpics() {
   const container = document.getElementById('epics-list');
-  if (!epicList.length) {
-    container.innerHTML = '<p class="empty-state">No epics yet.</p>';
+  const openEpics = epicList.filter(e => e.status !== 'done');
+
+  if (!openEpics.length) {
+    container.innerHTML = '<p class="empty-state">No open epics.</p>';
     return;
   }
 
-  container.innerHTML = epicList.map(epic => {
+  container.innerHTML = openEpics.map(epic => {
     const epicTasks = tasks.filter(t => t.epic_id === epic.id);
     const doneCount = epicTasks.filter(t => t.status === 'done').length;
     const total = epicTasks.length;
@@ -390,18 +384,26 @@ function renderEpics() {
       blockedBy.forEach(id => depParts.push(`<span class="dep-blocked-by">blocked by ${id}</span>`));
       blocks.forEach(id => depParts.push(`<span class="dep-blocks">blocks ${id}</span>`));
 
+      // Inline subtasks for this task
+      const subs = allSubtasks.filter(s => s.task_id === t.id);
+      const subsHtml = subs.length ? subs.map(s => `
+        <div class="subtask-row">
+          <span class="status-dot status-${s.status}"></span>
+          <span style="flex:1">${esc(s.title)}</span>
+          <span class="card-id">${s.id}</span>
+        </div>`).join('') : '';
+
       return `<div class="epic-task-row" onclick="openDrawer('${t.id}')">
         <span class="status-dot status-${t.status}"></span>
         <span class="task-title-text">${esc(t.title)}</span>
         <span class="card-id">${t.id}</span>
         <span class="priority-badge priority-${t.priority}">${priorityLabels[t.priority]}</span>
         <span class="task-deps">${depParts.join('')}</span>
-        <button class="subtask-toggle" onclick="event.stopPropagation(); toggleSubtasks('${t.id}', this)">subtasks</button>
-      </div>
-      <div class="subtask-list" id="subtasks-${t.id}" style="display:none"></div>`;
+      </div>${subsHtml ? `<div class="subtask-list" style="display:block">${subsHtml}</div>` : ''}`;
     }).join('');
 
-    const statusDot = epic.status === 'done' ? 'done' : (epicTasks.some(t => t.status === 'in_progress') ? 'in_progress' : 'open');
+    const statusDot = epicTasks.some(t => t.status === 'in_progress') ? 'in_progress'
+      : epicTasks.some(t => t.status === 'blocked') ? 'blocked' : 'open';
 
     return `<div class="epic-accordion" id="epic-acc-${epic.id}">
       <div class="epic-accordion-header" onclick="toggleEpicAcc('${epic.id}')">
@@ -431,28 +433,6 @@ function toggleEpicAcc(epicId) {
   if (notes) notes.style.display = el.classList.contains('open') ? 'block' : 'none';
 }
 
-async function toggleSubtasks(taskId, btn) {
-  const list = document.getElementById('subtasks-' + taskId);
-  if (list.style.display === 'block') {
-    list.style.display = 'none';
-    return;
-  }
-  list.innerHTML = '<div class="subtask-row" style="color:var(--text-muted)">Loading...</div>';
-  list.style.display = 'block';
-
-  const subs = await loadSubtasks(taskId);
-  if (!subs.length) {
-    list.innerHTML = '<div class="subtask-row" style="color:var(--text-muted)">No subtasks</div>';
-  } else {
-    list.innerHTML = subs.map(s => `
-      <div class="subtask-row">
-        <span class="status-dot status-${s.status}"></span>
-        <span style="flex:1">${esc(s.title)}</span>
-        <span class="card-id">${s.id}</span>
-      </div>`).join('');
-  }
-}
-
 // ── Decisions ──
 
 function renderDecisions() {
@@ -473,11 +453,10 @@ function renderDecisions() {
     </div>`).join('');
 }
 
-// ── Graph ──
+// ── Graph (Layered DAG) ──
 
 let graphViewBox = null;
-let graphNodes = null;
-let graphLinks = null;
+let _graphHandlers = null;
 
 function renderGraph() {
   const svg = document.getElementById('graph-svg');
@@ -490,233 +469,267 @@ function renderGraph() {
     return;
   }
 
-  // Build nodes with hierarchical initial layout
+  // ── Node dimensions by type ──
+  const nodeH = { epic: 40, task: 34, subtask: 28 };
+  const nodeW = { epic: 180, task: 160, subtask: 140 };
+  const layerGap = 80;
+  const nodeGapX = 24;
+
+  // ── Build node objects ──
   const nodeMap = {};
-  const epicNodes = [], taskNodes = [], subtaskNodes = [];
+  const layers = [[], [], []]; // 0=epics, 1=tasks, 2=subtasks
 
   allTasks.forEach(t => {
-    const node = {
-      id: t.id, title: t.title, status: t.status, type: t.type, priority: t.priority,
-      notes: t.notes,
-      x: 0, y: 0, vx: 0, vy: 0
-    };
-    nodeMap[t.id] = node;
-    if (t.type === 'epic') epicNodes.push(node);
-    else if (t.type === 'task') taskNodes.push(node);
-    else subtaskNodes.push(node);
+    const layer = t.type === 'epic' ? 0 : t.type === 'task' ? 1 : 2;
+    const n = { id: t.id, title: t.title, status: t.status, type: t.type,
+      priority: t.priority, notes: t.notes, parentId: t.epic_id || t.task_id,
+      x: 0, y: 0, w: nodeW[t.type], h: nodeH[t.type], layer };
+    nodeMap[n.id] = n;
+    layers[layer].push(n);
   });
+  const nodes = [...layers[0], ...layers[1], ...layers[2]];
 
-  const nodes = [...epicNodes, ...taskNodes, ...subtaskNodes];
-
-  // Hierarchical initial positions
-  const cx = W / 2, margin = 60;
-  function spreadRow(arr, y) {
-    const spacing = Math.min(160, (W - margin * 2) / Math.max(arr.length, 1));
-    const startX = cx - (arr.length - 1) * spacing / 2;
-    arr.forEach((n, i) => { n.x = startX + i * spacing; n.y = y; });
-  }
-  spreadRow(epicNodes, H * 0.18);
-  spreadRow(taskNodes, H * 0.50);
-  spreadRow(subtaskNodes, H * 0.82);
-
-  // Nudge children near their parents
-  taskNodes.forEach(n => {
-    const t = allTasks.find(a => a.id === n.id);
-    const pid = t?.epic_id;
-    if (pid && nodeMap[pid]) { n.x = nodeMap[pid].x + (Math.random() - 0.5) * 80; }
-  });
-  subtaskNodes.forEach(n => {
-    const t = allTasks.find(a => a.id === n.id);
-    const pid = t?.task_id;
-    if (pid && nodeMap[pid]) { n.x = nodeMap[pid].x + (Math.random() - 0.5) * 40; }
-  });
-
-  // Build links
-  const links = [];
+  // ── Build links ──
+  const hierLinks = [];
+  const depLinks = [];
   allTasks.forEach(t => {
     const pid = t.epic_id || t.task_id;
     if (pid && nodeMap[pid] && nodeMap[t.id]) {
-      links.push({ source: nodeMap[pid], target: nodeMap[t.id], type: 'hierarchy' });
+      hierLinks.push({ source: nodeMap[pid], target: nodeMap[t.id] });
     }
   });
   deps.forEach(d => {
     if (nodeMap[d.upstream_id] && nodeMap[d.downstream_id]) {
-      links.push({ source: nodeMap[d.upstream_id], target: nodeMap[d.downstream_id], type: 'dependency' });
+      depLinks.push({ source: nodeMap[d.upstream_id], target: nodeMap[d.downstream_id] });
     }
   });
 
-  // Force simulation
-  for (let iter = 0; iter < 300; iter++) {
-    const alpha = 1 - iter / 300;
-    // Repulsion
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        let dx = nodes[j].x - nodes[i].x;
-        let dy = nodes[j].y - nodes[i].y;
-        let dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        let force = 4000 / (dist * dist) * alpha;
-        nodes[i].vx -= dx / dist * force;
-        nodes[i].vy -= dy / dist * force;
-        nodes[j].vx += dx / dist * force;
-        nodes[j].vy += dy / dist * force;
-      }
-    }
-    // Attraction along links
-    links.forEach(l => {
-      let dx = l.target.x - l.source.x;
-      let dy = l.target.y - l.source.y;
-      let dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      const rest = l.type === 'hierarchy' ? 120 : 160;
-      let force = (dist - rest) * 0.008 * alpha;
-      l.source.vx += dx / dist * force;
-      l.source.vy += dy / dist * force;
-      l.target.vx -= dx / dist * force;
-      l.target.vy -= dy / dist * force;
-    });
-    // Layer gravity (keep hierarchy vertical)
-    nodes.forEach(n => {
-      const targetY = n.type === 'epic' ? H * 0.18 : n.type === 'task' ? H * 0.50 : H * 0.82;
-      n.vy += (targetY - n.y) * 0.003 * alpha;
-    });
-    // Center gravity
-    nodes.forEach(n => {
-      n.vx += (cx - n.x) * 0.0005;
-      n.x += n.vx * 0.4;
-      n.y += n.vy * 0.4;
-      n.vx *= 0.85;
-      n.vy *= 0.85;
-      n.x = Math.max(40, Math.min(W - 40, n.x));
-      n.y = Math.max(40, Math.min(H - 40, n.y));
-    });
+  // ── Layer assignment & ordering (Sugiyama step 1-2) ──
+  // Order nodes within each layer: group children under their parent's position.
+  // For layer 0 (epics): sort by priority then title.
+  layers[0].sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title));
+
+  // For layer 1 (tasks): group by epic, order groups by epic position, sort within by priority.
+  const epicOrder = {};
+  layers[0].forEach((e, i) => epicOrder[e.id] = i);
+  layers[1].sort((a, b) => {
+    const ea = epicOrder[a.parentId] ?? 999;
+    const eb = epicOrder[b.parentId] ?? 999;
+    if (ea !== eb) return ea - eb;
+    return a.priority - b.priority;
+  });
+
+  // For layer 2 (subtasks): group by task, order groups by task position.
+  const taskOrder = {};
+  layers[1].forEach((t, i) => taskOrder[t.id] = i);
+  layers[2].sort((a, b) => {
+    const ta = taskOrder[a.parentId] ?? 999;
+    const tb = taskOrder[b.parentId] ?? 999;
+    if (ta !== tb) return ta - tb;
+    return a.priority - b.priority;
+  });
+
+  // ── Position assignment (Sugiyama step 3) ──
+  // Compute total width needed per layer, then center.
+  function layoutLayer(arr, y) {
+    const totalW = arr.reduce((sum, n) => sum + n.w, 0) + Math.max(0, arr.length - 1) * nodeGapX;
+    let x = (W - totalW) / 2;
+    arr.forEach(n => { n.x = x; n.y = y; x += n.w + nodeGapX; });
   }
 
-  graphNodes = nodes;
-  graphLinks = links;
-  graphViewBox = { x: 0, y: 0, w: W, h: H };
-  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  let y0 = 40;
+  layoutLayer(layers[0], y0);
+  layoutLayer(layers[1], y0 + nodeH.epic + layerGap);
+  layoutLayer(layers[2], y0 + nodeH.epic + layerGap + nodeH.task + layerGap);
 
-  // Defs
+  // ── Nudge children toward parent center (barycenter refinement) ──
+  function nudgeLayer(childLayer) {
+    childLayer.forEach(n => {
+      if (n.parentId && nodeMap[n.parentId]) {
+        const parent = nodeMap[n.parentId];
+        const parentCx = parent.x + parent.w / 2;
+        const childCx = n.x + n.w / 2;
+        n._attraction = parentCx - childCx;
+      } else {
+        n._attraction = 0;
+      }
+    });
+    // Apply gentle nudge without overlapping (3 passes)
+    for (let pass = 0; pass < 3; pass++) {
+      childLayer.forEach(n => {
+        n.x += n._attraction * 0.3;
+      });
+      // Resolve overlaps
+      for (let i = 1; i < childLayer.length; i++) {
+        const prev = childLayer[i - 1];
+        const curr = childLayer[i];
+        const minX = prev.x + prev.w + nodeGapX;
+        if (curr.x < minX) curr.x = minX;
+      }
+      // Recalculate attractions
+      childLayer.forEach(n => {
+        if (n.parentId && nodeMap[n.parentId]) {
+          const parent = nodeMap[n.parentId];
+          n._attraction = (parent.x + parent.w / 2) - (n.x + n.w / 2);
+        }
+      });
+    }
+  }
+  nudgeLayer(layers[1]);
+  nudgeLayer(layers[2]);
+
+  // ── Compute content bounds and set viewBox ──
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  nodes.forEach(n => {
+    minX = Math.min(minX, n.x);
+    minY = Math.min(minY, n.y);
+    maxX = Math.max(maxX, n.x + n.w);
+    maxY = Math.max(maxY, n.y + n.h);
+  });
+  const pad = 40;
+  const contentW = Math.max(maxX - minX + pad * 2, W);
+  const contentH = Math.max(maxY - minY + pad * 2, H);
+  const vbX = minX - pad - (contentW - (maxX - minX + pad * 2)) / 2;
+  const vbY = minY - pad - (contentH - (maxY - minY + pad * 2)) / 2;
+  graphViewBox = { x: vbX, y: vbY, w: contentW, h: contentH };
+  svg.setAttribute('viewBox', `${vbX} ${vbY} ${contentW} ${contentH}`);
+
+  // ── SVG Defs ──
   const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
   defs.innerHTML = `
     <marker id="arrow-dep" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto">
       <path d="M0,0 L10,3 L0,6" fill="${statusColors.blocked}"/>
     </marker>
-    <marker id="arrow-hier" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="6" markerHeight="4" orient="auto">
-      <path d="M0,0 L10,3 L0,6" fill="#30363d"/>
-    </marker>`;
+    <filter id="node-shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity="0.3"/>
+    </filter>`;
   svg.appendChild(defs);
 
-  // Render edges
-  links.forEach((l, i) => {
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.id = 'edge-' + i;
-    line.setAttribute('x1', l.source.x);
-    line.setAttribute('y1', l.source.y);
-    line.setAttribute('x2', l.target.x);
-    line.setAttribute('y2', l.target.y);
-    if (l.type === 'dependency') {
-      line.setAttribute('stroke', statusColors.blocked);
-      line.setAttribute('stroke-width', '2');
-      line.setAttribute('marker-end', 'url(#arrow-dep)');
-    } else {
-      line.setAttribute('stroke', '#30363d');
-      line.setAttribute('stroke-width', '1');
-      line.setAttribute('stroke-dasharray', '4,4');
-      line.setAttribute('marker-end', 'url(#arrow-hier)');
-    }
-    svg.appendChild(line);
+  // ── Render hierarchy edges (straight lines, behind everything) ──
+  hierLinks.forEach((l, i) => {
+    const sx = l.source.x + l.source.w / 2;
+    const sy = l.source.y + l.source.h;
+    const tx = l.target.x + l.target.w / 2;
+    const ty = l.target.y;
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.id = 'hier-' + i;
+    const my = sy + (ty - sy) / 2;
+    path.setAttribute('d', `M${sx},${sy} C${sx},${my} ${tx},${my} ${tx},${ty}`);
+    path.setAttribute('stroke', '#30363d');
+    path.setAttribute('stroke-width', '1');
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke-dasharray', '4,3');
+    svg.appendChild(path);
   });
 
-  // Render nodes
+  // ── Render dependency edges (curved, red, with arrows) ──
+  depLinks.forEach((l, i) => {
+    const sx = l.source.x + l.source.w / 2;
+    const sy = l.source.y + l.source.h / 2;
+    const tx = l.target.x + l.target.w / 2;
+    const ty = l.target.y + l.target.h / 2;
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.id = 'dep-' + i;
+    // Offset control points to create a visible curve
+    const dx = tx - sx;
+    const dy = ty - sy;
+    const cx1 = sx + dx * 0.4;
+    const cy1 = sy - 30;
+    const cx2 = tx - dx * 0.4;
+    const cy2 = ty - 30;
+    path.setAttribute('d', `M${sx},${sy} C${cx1},${cy1} ${cx2},${cy2} ${tx},${ty}`);
+    path.setAttribute('stroke', statusColors.blocked);
+    path.setAttribute('stroke-width', '2');
+    path.setAttribute('fill', 'none');
+    path.setAttribute('marker-end', 'url(#arrow-dep)');
+    path.setAttribute('opacity', '0.8');
+    svg.appendChild(path);
+  });
+
+  // ── Render nodes as rounded rectangles ──
+  const statusBorderColors = { open: '#8b949e', in_progress: '#d29922', blocked: '#f85149', done: '#3fb950' };
+
   nodes.forEach(n => {
-    const r = typeRadius[n.type] || 13;
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     g.dataset.nodeId = n.id;
     g.style.cursor = 'pointer';
 
-    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    circle.setAttribute('cx', n.x);
-    circle.setAttribute('cy', n.y);
-    circle.setAttribute('r', r);
-    circle.setAttribute('fill', statusColors[n.status] || '#8b949e');
-    circle.setAttribute('stroke', n.type === 'epic' ? '#e6edf3' : 'rgba(230,237,243,0.3)');
-    circle.setAttribute('stroke-width', n.type === 'epic' ? '2.5' : '1');
-    g.appendChild(circle);
+    // Background rect
+    const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    r.setAttribute('x', n.x);
+    r.setAttribute('y', n.y);
+    r.setAttribute('width', n.w);
+    r.setAttribute('height', n.h);
+    r.setAttribute('rx', '6');
+    r.setAttribute('fill', '#161b22');
+    r.setAttribute('stroke', '#30363d');
+    r.setAttribute('stroke-width', '1');
+    r.setAttribute('filter', 'url(#node-shadow)');
+    g.appendChild(r);
 
+    // Left accent bar (status color)
+    const bar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bar.setAttribute('x', n.x);
+    bar.setAttribute('y', n.y);
+    bar.setAttribute('width', '3');
+    bar.setAttribute('height', n.h);
+    bar.setAttribute('rx', '1.5');
+    bar.setAttribute('fill', statusBorderColors[n.status] || '#8b949e');
+    g.appendChild(bar);
+
+    // Title text
+    const fontSize = n.type === 'epic' ? 13 : n.type === 'task' ? 12 : 11;
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    text.setAttribute('x', n.x);
-    text.setAttribute('y', n.y + r + 14);
-    text.setAttribute('text-anchor', 'middle');
-    text.setAttribute('fill', '#8b949e');
-    text.setAttribute('font-size', n.type === 'epic' ? '12' : '10');
+    text.setAttribute('x', n.x + 12);
+    text.setAttribute('y', n.y + n.h / 2 - (n.type === 'epic' ? 2 : 0));
+    text.setAttribute('dominant-baseline', 'central');
+    text.setAttribute('fill', '#e6edf3');
+    text.setAttribute('font-size', fontSize);
     text.setAttribute('font-weight', n.type === 'epic' ? '600' : '400');
-    text.textContent = n.title.length > 24 ? n.title.slice(0, 22) + '...' : n.title;
+    const maxChars = Math.floor((n.w - 20) / (fontSize * 0.58));
+    text.textContent = n.title.length > maxChars ? n.title.slice(0, maxChars - 1) + '\u2026' : n.title;
     g.appendChild(text);
+
+    // ID label for epics
+    if (n.type === 'epic') {
+      const idText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      idText.setAttribute('x', n.x + 12);
+      idText.setAttribute('y', n.y + n.h / 2 + 12);
+      idText.setAttribute('dominant-baseline', 'central');
+      idText.setAttribute('fill', '#8b949e');
+      idText.setAttribute('font-size', '10');
+      idText.setAttribute('font-family', 'monospace');
+      idText.textContent = n.id;
+      g.appendChild(idText);
+    }
 
     svg.appendChild(g);
   });
 
-  // Attach interaction (only once — uses graphNodes/graphLinks globals)
-  setupGraphInteraction(svg, nodes, links);
+  // ── Interaction ──
+  setupGraphInteraction(svg, nodes, hierLinks.concat(depLinks));
 }
 
-// Graph interaction — stored handlers so we can remove on re-render
-let _graphHandlers = null;
-
+// ── Graph interaction ──
 function setupGraphInteraction(svg, nodes, links) {
-  // Remove old listeners if any
   if (_graphHandlers) {
     svg.removeEventListener('mousedown', _graphHandlers.mousedown);
     svg.removeEventListener('mousemove', _graphHandlers.mousemove);
     svg.removeEventListener('mouseup', _graphHandlers.mouseup);
     svg.removeEventListener('mouseleave', _graphHandlers.mouseleave);
     svg.removeEventListener('click', _graphHandlers.click);
-    svg.removeEventListener('dblclick', _graphHandlers.dblclick);
     svg.removeEventListener('wheel', _graphHandlers.wheel);
   }
 
-  let dragNode = null;
-  let dragOffset = { x: 0, y: 0 };
   let isPanning = false;
   let panStart = null;
-  let didDrag = false; // tracks if mouse actually moved during drag/pan
-
-  function svgCoords(e) {
-    const ctm = svg.getScreenCTM();
-    if (!ctm) return { x: 0, y: 0 };
-    const inv = ctm.inverse();
-    return { x: e.clientX * inv.a + inv.e, y: e.clientY * inv.d + inv.f };
-  }
-
-  function updateEdges(node) {
-    links.forEach((l, i) => {
-      if (l.source.id === node.id || l.target.id === node.id) {
-        const line = document.getElementById('edge-' + i);
-        if (line) {
-          line.setAttribute('x1', l.source.x);
-          line.setAttribute('y1', l.source.y);
-          line.setAttribute('x2', l.target.x);
-          line.setAttribute('y2', l.target.y);
-        }
-      }
-    });
-  }
+  let didDrag = false;
 
   const handlers = {};
 
   handlers.mousedown = e => {
     didDrag = false;
-    const nodeG = e.target.closest('g[data-node-id]');
-    if (nodeG) {
-      const nid = nodeG.dataset.nodeId;
-      dragNode = nodes.find(n => n.id === nid);
-      if (dragNode) {
-        const pt = svgCoords(e);
-        dragOffset = { x: pt.x - dragNode.x, y: pt.y - dragNode.y };
-        svg.classList.add('dragging-node');
-        e.preventDefault();
-      }
-    } else {
+    if (!e.target.closest('g[data-node-id]')) {
       isPanning = true;
       panStart = { mx: e.clientX, my: e.clientY, vx: graphViewBox.x, vy: graphViewBox.y };
       svg.classList.add('panning');
@@ -725,21 +738,6 @@ function setupGraphInteraction(svg, nodes, links) {
   };
 
   handlers.mousemove = e => {
-    if (dragNode) {
-      didDrag = true;
-      const pt = svgCoords(e);
-      dragNode.x = pt.x - dragOffset.x;
-      dragNode.y = pt.y - dragOffset.y;
-      const g = svg.querySelector(`g[data-node-id="${dragNode.id}"]`);
-      if (g) {
-        g.querySelector('circle').setAttribute('cx', dragNode.x);
-        g.querySelector('circle').setAttribute('cy', dragNode.y);
-        const txt = g.querySelector('text');
-        txt.setAttribute('x', dragNode.x);
-        txt.setAttribute('y', dragNode.y + (typeRadius[dragNode.type] || 13) + 14);
-      }
-      updateEdges(dragNode);
-    }
     if (isPanning && panStart) {
       const dx = e.clientX - panStart.mx;
       const dy = e.clientY - panStart.my;
@@ -749,20 +747,19 @@ function setupGraphInteraction(svg, nodes, links) {
       graphViewBox.y = panStart.vy - dy * scale;
       svg.setAttribute('viewBox', `${graphViewBox.x} ${graphViewBox.y} ${graphViewBox.w} ${graphViewBox.h}`);
     }
-
     // Tooltip
     const nodeG = e.target.closest('g[data-node-id]');
     const tooltip = document.getElementById('graph-tooltip');
-    if (nodeG && !dragNode) {
+    if (nodeG) {
       const nid = nodeG.dataset.nodeId;
       const n = nodes.find(nn => nn.id === nid);
       if (n) {
         tooltip.innerHTML = `<div class="tt-title">${esc(n.title)}</div>
           <div class="tt-meta">${n.id} &middot; ${n.type} &middot; ${n.status} &middot; ${priorityLabels[n.priority]}</div>
           ${n.notes ? `<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">${esc(n.notes)}</div>` : ''}`;
-        const containerRect = svg.closest('.graph-container').getBoundingClientRect();
-        tooltip.style.left = (e.clientX - containerRect.left + 12) + 'px';
-        tooltip.style.top = (e.clientY - containerRect.top - 10) + 'px';
+        const cr = svg.closest('.graph-container').getBoundingClientRect();
+        tooltip.style.left = (e.clientX - cr.left + 12) + 'px';
+        tooltip.style.top = (e.clientY - cr.top - 10) + 'px';
         tooltip.classList.add('visible');
       }
     } else {
@@ -771,10 +768,8 @@ function setupGraphInteraction(svg, nodes, links) {
   };
 
   handlers.mouseup = () => {
-    dragNode = null;
     isPanning = false;
     panStart = null;
-    svg.classList.remove('dragging-node');
     svg.classList.remove('panning');
   };
 
@@ -783,47 +778,23 @@ function setupGraphInteraction(svg, nodes, links) {
   };
 
   handlers.click = e => {
-    if (didDrag) return; // don't open drawer after drag/pan
+    if (didDrag) return;
     const nodeG = e.target.closest('g[data-node-id]');
     if (nodeG) openDrawer(nodeG.dataset.nodeId);
   };
 
-  handlers.dblclick = e => {
-    const nodeG = e.target.closest('g[data-node-id]');
-    if (!nodeG) return;
-    const nid = nodeG.dataset.nodeId;
-    const n = nodes.find(nn => nn.id === nid);
-    if (!n || n.type !== 'epic') return;
-
-    // Find cluster: the epic + its child tasks
-    const cluster = [n];
-    nodes.forEach(nn => {
-      const t = allTasks.find(a => a.id === nn.id);
-      if (t && t.epic_id === nid) cluster.push(nn);
-    });
-
-    const padding = 80;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    cluster.forEach(c => {
-      minX = Math.min(minX, c.x); minY = Math.min(minY, c.y);
-      maxX = Math.max(maxX, c.x); maxY = Math.max(maxY, c.y);
-    });
-    graphViewBox = {
-      x: minX - padding, y: minY - padding,
-      w: Math.max(maxX - minX + padding * 2, 200),
-      h: Math.max(maxY - minY + padding * 2, 200)
-    };
-    svg.setAttribute('viewBox', `${graphViewBox.x} ${graphViewBox.y} ${graphViewBox.w} ${graphViewBox.h}`);
-  };
-
   handlers.wheel = e => {
     e.preventDefault();
-    const scale = e.deltaY > 0 ? 1.1 : 0.9;
-    const pt = svgCoords(e);
-    graphViewBox.x = pt.x - (pt.x - graphViewBox.x) * scale;
-    graphViewBox.y = pt.y - (pt.y - graphViewBox.y) * scale;
-    graphViewBox.w *= scale;
-    graphViewBox.h *= scale;
+    const factor = e.deltaY > 0 ? 1.1 : 0.9;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return;
+    const inv = ctm.inverse();
+    const px = e.clientX * inv.a + inv.e;
+    const py = e.clientY * inv.d + inv.f;
+    graphViewBox.x = px - (px - graphViewBox.x) * factor;
+    graphViewBox.y = py - (py - graphViewBox.y) * factor;
+    graphViewBox.w *= factor;
+    graphViewBox.h *= factor;
     svg.setAttribute('viewBox', `${graphViewBox.x} ${graphViewBox.y} ${graphViewBox.w} ${graphViewBox.h}`);
   };
 
@@ -832,9 +803,7 @@ function setupGraphInteraction(svg, nodes, links) {
   svg.addEventListener('mouseup', handlers.mouseup);
   svg.addEventListener('mouseleave', handlers.mouseleave);
   svg.addEventListener('click', handlers.click);
-  svg.addEventListener('dblclick', handlers.dblclick);
   svg.addEventListener('wheel', handlers.wheel, { passive: false });
-
   _graphHandlers = handlers;
 }
 
@@ -851,10 +820,8 @@ function graphZoom(factor) {
 }
 
 function graphReset() {
-  const svg = document.getElementById('graph-svg');
-  const rect = svg.getBoundingClientRect();
-  graphViewBox = { x: 0, y: 0, w: rect.width, h: rect.height };
-  svg.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
+  if (!graphViewBox) return;
+  renderGraph();
 }
 
 // ── Drawer ──
