@@ -101,18 +101,26 @@
 
   /* Graph view */
   .graph-container { height: calc(100vh - 49px); position: relative; overflow: hidden; }
-  .graph-container svg { width: 100%; height: 100%; background: var(--surface); cursor: grab; }
+  .graph-container svg { width: 100%; height: 100%; background: var(--bg); cursor: grab; }
   .graph-container svg.panning { cursor: grabbing; }
   .graph-container svg.dragging-node { cursor: grabbing; }
-  .graph-tooltip { position: absolute; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; font-size: 12px; pointer-events: none; display: none; z-index: 10; max-width: 260px; line-height: 1.5; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+  .graph-tooltip { position: absolute; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; font-size: 12px; pointer-events: none; display: none; z-index: 10; max-width: 280px; line-height: 1.5; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
   .graph-tooltip.visible { display: block; }
   .graph-tooltip .tt-title { font-weight: 600; margin-bottom: 4px; }
   .graph-tooltip .tt-meta { color: var(--text-muted); font-size: 11px; }
   .graph-controls { position: absolute; top: 16px; right: 16px; display: flex; flex-direction: column; gap: 4px; z-index: 5; }
   .graph-btn { width: 32px; height: 32px; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); color: var(--text); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
   .graph-btn:hover { background: rgba(255,255,255,0.08); }
+  .graph-filters { position: absolute; top: 16px; left: 16px; display: flex; gap: 8px; z-index: 5; }
+  .graph-filter-select { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; outline: none; transition: border-color 0.15s; -webkit-appearance: none; appearance: none; padding-right: 24px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238b949e'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
+  .graph-filter-select:hover { border-color: var(--accent); }
+  .graph-filter-select option { background: var(--surface); color: var(--text); }
   .graph-legend { position: absolute; bottom: 16px; left: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; font-size: 11px; color: var(--text-muted); z-index: 5; line-height: 1.8; }
   .graph-legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+  .graph-node { transition: opacity 0.15s; }
+  .edge-hierarchy, .edge-dep { transition: opacity 0.15s; }
+  @keyframes edge-flow { to { stroke-dashoffset: -10; } }
+  .edge-dep.active { stroke-dasharray: 6 4; animation: edge-flow 0.8s linear infinite; }
 
   /* Decisions */
   #decisions-view { height: calc(100vh - 49px); overflow-y: auto; }
@@ -196,9 +204,28 @@
   <div class="graph-container">
     <svg id="graph-svg"></svg>
     <div class="graph-tooltip" id="graph-tooltip"></div>
+    <div class="graph-filters">
+      <select id="filter-status" class="graph-filter-select" onchange="applyGraphFilters()">
+        <option value="">All statuses</option>
+        <option value="open">Open</option>
+        <option value="in_progress">In Progress</option>
+        <option value="blocked">Blocked</option>
+        <option value="done">Done</option>
+      </select>
+      <select id="filter-type" class="graph-filter-select" onchange="applyGraphFilters()">
+        <option value="">All types</option>
+        <option value="epic">Epics</option>
+        <option value="task">Tasks</option>
+        <option value="subtask">Subtasks</option>
+      </select>
+      <select id="filter-epic" class="graph-filter-select" onchange="applyGraphFilters()">
+        <option value="">All epics</option>
+      </select>
+    </div>
     <div class="graph-controls">
       <button class="graph-btn" onclick="graphZoom(0.8)" title="Zoom in">+</button>
       <button class="graph-btn" onclick="graphZoom(1.25)" title="Zoom out">&minus;</button>
+      <button class="graph-btn" onclick="graphFitToView()" title="Fit to view">&#11034;</button>
       <button class="graph-btn" onclick="graphReset()" title="Reset view">&#8634;</button>
     </div>
     <div class="graph-legend">
@@ -206,7 +233,7 @@
         <span class="graph-legend-dot" style="background:var(--yellow);margin-left:8px"></span> Active
         <span class="graph-legend-dot" style="background:var(--red);margin-left:8px"></span> Blocked
         <span class="graph-legend-dot" style="background:var(--green);margin-left:8px"></span> Done</div>
-      <div style="margin-top:4px;font-size:10px">Dashed = parent-child &middot; Red curve = blocks</div>
+      <div style="margin-top:4px;font-size:10px">Faint line = parent &middot; <span style="color:var(--red)">Red</span> = blocks &middot; <span style="color:var(--green)">Green</span> = resolved</div>
     </div>
   </div>
 </div>
@@ -295,7 +322,7 @@ async function loadData() {
   if (activeView === 'board' || !activeView) renderBoard(columns);
   if (activeView === 'epics') renderEpics();
   if (activeView === 'decisions') renderDecisions();
-  // Graph deliberately NOT auto-refreshed to preserve zoom/pan state
+  if (activeView === 'graph') refreshGraphData();
 }
 
 // ── Board ──
@@ -455,8 +482,45 @@ function renderDecisions() {
 
 // ── Graph (Layered DAG) ──
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
 let graphViewBox = null;
 let _graphHandlers = null;
+let _graphNodes = [];
+let _graphHierLinks = [];
+let _graphDepLinks = [];
+let _graphNodeMap = {};
+let _nodePositionCache = {};
+let _measureSvg = null;
+let _measureText = null;
+
+function ensureMeasure() {
+  if (_measureSvg) return;
+  _measureSvg = document.createElementNS(SVG_NS, 'svg');
+  _measureSvg.style.cssText = 'position:absolute;top:-9999px;left:-9999px;width:0;height:0;overflow:hidden';
+  _measureText = document.createElementNS(SVG_NS, 'text');
+  _measureText.setAttribute('font-family', "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif");
+  _measureSvg.appendChild(_measureText);
+  document.body.appendChild(_measureSvg);
+}
+
+function measureTextWidth(str, fontSize, fontWeight) {
+  ensureMeasure();
+  _measureText.setAttribute('font-size', fontSize);
+  _measureText.setAttribute('font-weight', fontWeight || '400');
+  _measureText.textContent = str;
+  return _measureText.getComputedTextLength();
+}
+
+function computeNodeSize(n) {
+  const fontSize = n.type === 'epic' ? 13 : n.type === 'task' ? 12 : 11;
+  const fontWeight = n.type === 'epic' ? '600' : '400';
+  const textW = measureTextWidth(n.title, fontSize, fontWeight);
+  const padX = n.type === 'epic' ? 40 : 36;
+  const minW = { epic: 150, task: 120, subtask: 100 }[n.type];
+  const maxW = { epic: 280, task: 240, subtask: 200 }[n.type];
+  n.w = Math.max(minW, Math.min(maxW, textW + padX));
+  n.h = { epic: 44, task: 36, subtask: 30 }[n.type];
+}
 
 function renderGraph() {
   const svg = document.getElementById('graph-svg');
@@ -469,21 +533,19 @@ function renderGraph() {
     return;
   }
 
-  // ── Node dimensions by type ──
-  const nodeH = { epic: 40, task: 34, subtask: 28 };
-  const nodeW = { epic: 180, task: 160, subtask: 140 };
-  const layerGap = 80;
-  const nodeGapX = 24;
+  const layerGap = 100;
+  const nodeGapX = 28;
 
-  // ── Build node objects ──
+  // ── Build node objects with measured sizes ──
   const nodeMap = {};
-  const layers = [[], [], []]; // 0=epics, 1=tasks, 2=subtasks
+  const layers = [[], [], []];
 
   allTasks.forEach(t => {
     const layer = t.type === 'epic' ? 0 : t.type === 'task' ? 1 : 2;
     const n = { id: t.id, title: t.title, status: t.status, type: t.type,
       priority: t.priority, notes: t.notes, parentId: t.epic_id || t.task_id,
-      x: 0, y: 0, w: nodeW[t.type], h: nodeH[t.type], layer };
+      x: 0, y: 0, w: 0, h: 0, layer, _userPlaced: false };
+    computeNodeSize(n);
     nodeMap[n.id] = n;
     layers[layer].push(n);
   });
@@ -504,79 +566,125 @@ function renderGraph() {
     }
   });
 
-  // ── Layer assignment & ordering (Sugiyama step 1-2) ──
-  // Order nodes within each layer: group children under their parent's position.
-  // For layer 0 (epics): sort by priority then title.
+  // ── Initial ordering: sort by priority then title ──
   layers[0].sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title));
-
-  // For layer 1 (tasks): group by epic, order groups by epic position, sort within by priority.
   const epicOrder = {};
   layers[0].forEach((e, i) => epicOrder[e.id] = i);
   layers[1].sort((a, b) => {
     const ea = epicOrder[a.parentId] ?? 999;
     const eb = epicOrder[b.parentId] ?? 999;
-    if (ea !== eb) return ea - eb;
-    return a.priority - b.priority;
+    return ea !== eb ? ea - eb : a.priority - b.priority;
   });
-
-  // For layer 2 (subtasks): group by task, order groups by task position.
   const taskOrder = {};
   layers[1].forEach((t, i) => taskOrder[t.id] = i);
   layers[2].sort((a, b) => {
     const ta = taskOrder[a.parentId] ?? 999;
     const tb = taskOrder[b.parentId] ?? 999;
-    if (ta !== tb) return ta - tb;
-    return a.priority - b.priority;
+    return ta !== tb ? ta - tb : a.priority - b.priority;
   });
 
-  // ── Position assignment (Sugiyama step 3) ──
-  // Compute total width needed per layer, then center.
+  // ── Position assignment ──
   function layoutLayer(arr, y) {
     const totalW = arr.reduce((sum, n) => sum + n.w, 0) + Math.max(0, arr.length - 1) * nodeGapX;
     let x = (W - totalW) / 2;
     arr.forEach(n => { n.x = x; n.y = y; x += n.w + nodeGapX; });
   }
 
-  let y0 = 40;
+  let y0 = 50;
   layoutLayer(layers[0], y0);
-  layoutLayer(layers[1], y0 + nodeH.epic + layerGap);
-  layoutLayer(layers[2], y0 + nodeH.epic + layerGap + nodeH.task + layerGap);
+  layoutLayer(layers[1], y0 + (layers[0].length ? layers[0][0].h : 44) + layerGap);
+  const layer2Y = y0 + (layers[0].length ? layers[0][0].h : 44) + layerGap + (layers[1].length ? layers[1][0].h : 36) + layerGap;
+  layoutLayer(layers[2], layer2Y);
 
-  // ── Nudge children toward parent center (barycenter refinement) ──
-  function nudgeLayer(childLayer) {
-    childLayer.forEach(n => {
-      if (n.parentId && nodeMap[n.parentId]) {
-        const parent = nodeMap[n.parentId];
-        const parentCx = parent.x + parent.w / 2;
-        const childCx = n.x + n.w / 2;
-        n._attraction = parentCx - childCx;
+  // ── 4-pass barycenter refinement ──
+  function getConnectedInLayer(node, adjLayer, links) {
+    const ids = new Set();
+    links.forEach(l => {
+      if (l.source.id === node.id && adjLayer.includes(l.target)) ids.add(l.target.id);
+      if (l.target.id === node.id && adjLayer.includes(l.source)) ids.add(l.source.id);
+    });
+    // Also consider hierarchy
+    if (node.parentId && nodeMap[node.parentId] && adjLayer.includes(nodeMap[node.parentId])) {
+      ids.add(node.parentId);
+    }
+    adjLayer.forEach(n => {
+      if (n.parentId === node.id) ids.add(n.id);
+    });
+    return adjLayer.filter(n => ids.has(n.id));
+  }
+
+  function baryOrder(layer, adjLayer, allLinks) {
+    layer.forEach(n => {
+      const connected = getConnectedInLayer(n, adjLayer, allLinks);
+      if (connected.length > 0) {
+        n._bary = connected.reduce((s, c) => s + c.x + c.w / 2, 0) / connected.length;
       } else {
-        n._attraction = 0;
+        n._bary = n.x + n.w / 2;
       }
     });
-    // Apply gentle nudge without overlapping (3 passes)
-    for (let pass = 0; pass < 3; pass++) {
-      childLayer.forEach(n => {
-        n.x += n._attraction * 0.3;
-      });
-      // Resolve overlaps
-      for (let i = 1; i < childLayer.length; i++) {
-        const prev = childLayer[i - 1];
-        const curr = childLayer[i];
-        const minX = prev.x + prev.w + nodeGapX;
-        if (curr.x < minX) curr.x = minX;
-      }
-      // Recalculate attractions
+    layer.sort((a, b) => a._bary - b._bary);
+  }
+
+  function resolveOverlaps(layer) {
+    for (let i = 1; i < layer.length; i++) {
+      const minX = layer[i - 1].x + layer[i - 1].w + nodeGapX;
+      if (layer[i].x < minX) layer[i].x = minX;
+    }
+    // Re-center the layer
+    if (layer.length) {
+      const first = layer[0].x;
+      const last = layer[layer.length - 1].x + layer[layer.length - 1].w;
+      const totalW = last - first;
+      const offset = (W - totalW) / 2 - first;
+      layer.forEach(n => n.x += offset);
+    }
+  }
+
+  const allLinks = [...hierLinks, ...depLinks];
+  for (let pass = 0; pass < 4; pass++) {
+    if (pass % 2 === 0) {
+      baryOrder(layers[1], layers[0], allLinks);
+      resolveOverlaps(layers[1]);
+      baryOrder(layers[2], layers[1], allLinks);
+      resolveOverlaps(layers[2]);
+    } else {
+      baryOrder(layers[1], layers[2], allLinks);
+      resolveOverlaps(layers[1]);
+      baryOrder(layers[0], layers[1], allLinks);
+      resolveOverlaps(layers[0]);
+    }
+  }
+
+  // ── Nudge children toward parents (fine-tuning) ──
+  function nudgeLayer(childLayer) {
+    for (let pass = 0; pass < 4; pass++) {
       childLayer.forEach(n => {
         if (n.parentId && nodeMap[n.parentId]) {
-          const parent = nodeMap[n.parentId];
-          n._attraction = (parent.x + parent.w / 2) - (n.x + n.w / 2);
+          const p = nodeMap[n.parentId];
+          n._attraction = (p.x + p.w / 2) - (n.x + n.w / 2);
+        } else {
+          n._attraction = 0;
         }
       });
+      childLayer.forEach(n => { n.x += n._attraction * 0.25; });
+      for (let i = 1; i < childLayer.length; i++) {
+        const minX = childLayer[i - 1].x + childLayer[i - 1].w + nodeGapX;
+        if (childLayer[i].x < minX) childLayer[i].x = minX;
+      }
     }
   }
   nudgeLayer(layers[1]);
   nudgeLayer(layers[2]);
+
+  // ── Restore cached positions for user-placed nodes ──
+  nodes.forEach(n => {
+    const cached = _nodePositionCache[n.id];
+    if (cached && cached.userPlaced) {
+      n.x = cached.x;
+      n.y = cached.y;
+      n._userPlaced = true;
+    }
+  });
 
   // ── Compute content bounds and set viewBox ──
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -586,7 +694,7 @@ function renderGraph() {
     maxX = Math.max(maxX, n.x + n.w);
     maxY = Math.max(maxY, n.y + n.h);
   });
-  const pad = 40;
+  const pad = 60;
   const contentW = Math.max(maxX - minX + pad * 2, W);
   const contentH = Math.max(maxY - minY + pad * 2, H);
   const vbX = minX - pad - (contentW - (maxX - minX + pad * 2)) / 2;
@@ -595,67 +703,76 @@ function renderGraph() {
   svg.setAttribute('viewBox', `${vbX} ${vbY} ${contentW} ${contentH}`);
 
   // ── SVG Defs ──
-  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  const defs = document.createElementNS(SVG_NS, 'defs');
   defs.innerHTML = `
-    <marker id="arrow-dep" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto">
+    <marker id="arrow-blocking" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto">
       <path d="M0,0 L10,3 L0,6" fill="${statusColors.blocked}"/>
     </marker>
+    <marker id="arrow-resolved" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="6" markerHeight="5" orient="auto">
+      <path d="M0,0 L10,3 L0,6" fill="${statusColors.done}"/>
+    </marker>
     <filter id="node-shadow" x="-10%" y="-10%" width="120%" height="130%">
-      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity="0.3"/>
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.25"/>
     </filter>`;
   svg.appendChild(defs);
 
-  // ── Render hierarchy edges (straight lines, behind everything) ──
+  // ── Render hierarchy edges (solid, faint) ──
   hierLinks.forEach((l, i) => {
     const sx = l.source.x + l.source.w / 2;
     const sy = l.source.y + l.source.h;
     const tx = l.target.x + l.target.w / 2;
     const ty = l.target.y;
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.id = 'hier-' + i;
+    const path = document.createElementNS(SVG_NS, 'path');
+    path.classList.add('edge-hierarchy');
+    path.dataset.sourceId = l.source.id;
+    path.dataset.targetId = l.target.id;
+    path.dataset.baseOpacity = '0.35';
     const my = sy + (ty - sy) / 2;
     path.setAttribute('d', `M${sx},${sy} C${sx},${my} ${tx},${my} ${tx},${ty}`);
     path.setAttribute('stroke', '#30363d');
     path.setAttribute('stroke-width', '1');
     path.setAttribute('fill', 'none');
-    path.setAttribute('stroke-dasharray', '4,3');
+    path.setAttribute('opacity', '0.35');
     svg.appendChild(path);
   });
 
-  // ── Render dependency edges (curved, red, with arrows) ──
+  // ── Render dependency edges (colored by resolution state) ──
   depLinks.forEach((l, i) => {
+    const resolved = l.source.status === 'done';
     const sx = l.source.x + l.source.w / 2;
-    const sy = l.source.y + l.source.h / 2;
+    const sy = l.source.y + l.source.h;
     const tx = l.target.x + l.target.w / 2;
-    const ty = l.target.y + l.target.h / 2;
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.id = 'dep-' + i;
-    // Offset control points to create a visible curve
+    const ty = l.target.y;
+    const path = document.createElementNS(SVG_NS, 'path');
+    path.classList.add('edge-dep');
+    if (!resolved) path.classList.add('active');
+    path.dataset.sourceId = l.source.id;
+    path.dataset.targetId = l.target.id;
+    const baseOp = resolved ? '0.4' : '0.85';
+    path.dataset.baseOpacity = baseOp;
+    // Smart bezier: route around nodes
     const dx = tx - sx;
-    const dy = ty - sy;
-    const cx1 = sx + dx * 0.4;
-    const cy1 = sy - 30;
-    const cx2 = tx - dx * 0.4;
-    const cy2 = ty - 30;
-    path.setAttribute('d', `M${sx},${sy} C${cx1},${cy1} ${cx2},${cy2} ${tx},${ty}`);
-    path.setAttribute('stroke', statusColors.blocked);
-    path.setAttribute('stroke-width', '2');
+    const midY = sy + (ty - sy) / 2;
+    const curveOffset = Math.min(40, Math.abs(dx) * 0.3);
+    path.setAttribute('d', `M${sx},${sy} C${sx},${midY - curveOffset} ${tx},${midY + curveOffset} ${tx},${ty}`);
+    path.setAttribute('stroke', resolved ? statusColors.done : statusColors.blocked);
+    path.setAttribute('stroke-width', resolved ? '1.5' : '2');
     path.setAttribute('fill', 'none');
-    path.setAttribute('marker-end', 'url(#arrow-dep)');
-    path.setAttribute('opacity', '0.8');
+    path.setAttribute('marker-end', resolved ? 'url(#arrow-resolved)' : 'url(#arrow-blocking)');
+    path.setAttribute('opacity', baseOp);
     svg.appendChild(path);
   });
 
-  // ── Render nodes as rounded rectangles ──
-  const statusBorderColors = { open: '#8b949e', in_progress: '#d29922', blocked: '#f85149', done: '#3fb950' };
-
+  // ── Render nodes ──
   nodes.forEach(n => {
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const g = document.createElementNS(SVG_NS, 'g');
     g.dataset.nodeId = n.id;
+    g.classList.add('graph-node');
     g.style.cursor = 'pointer';
+    if (n.status === 'done') g.style.opacity = '0.6';
 
     // Background rect
-    const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    const r = document.createElementNS(SVG_NS, 'rect');
     r.setAttribute('x', n.x);
     r.setAttribute('y', n.y);
     r.setAttribute('width', n.w);
@@ -665,53 +782,199 @@ function renderGraph() {
     r.setAttribute('stroke', '#30363d');
     r.setAttribute('stroke-width', '1');
     r.setAttribute('filter', 'url(#node-shadow)');
+    r.classList.add('node-bg');
     g.appendChild(r);
 
-    // Left accent bar (status color)
-    const bar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    // Left status accent bar
+    const bar = document.createElementNS(SVG_NS, 'rect');
     bar.setAttribute('x', n.x);
-    bar.setAttribute('y', n.y);
+    bar.setAttribute('y', n.y + 2);
     bar.setAttribute('width', '3');
-    bar.setAttribute('height', n.h);
+    bar.setAttribute('height', n.h - 4);
     bar.setAttribute('rx', '1.5');
-    bar.setAttribute('fill', statusBorderColors[n.status] || '#8b949e');
+    bar.setAttribute('fill', statusColors[n.status] || '#8b949e');
+    bar.classList.add('node-bar');
     g.appendChild(bar);
 
-    // Title text
+    // Type icon
+    const iconX = n.x + 14, iconY = n.y + n.h / 2;
+    if (n.type === 'epic') {
+      const d = document.createElementNS(SVG_NS, 'polygon');
+      d.setAttribute('points', `${iconX},${iconY - 5} ${iconX + 5},${iconY} ${iconX},${iconY + 5} ${iconX - 5},${iconY}`);
+      d.setAttribute('fill', '#bc8cff');
+      d.setAttribute('opacity', '0.8');
+      d.classList.add('node-icon');
+      g.appendChild(d);
+    } else if (n.type === 'task') {
+      const c = document.createElementNS(SVG_NS, 'circle');
+      c.setAttribute('cx', iconX); c.setAttribute('cy', iconY);
+      c.setAttribute('r', '4');
+      c.setAttribute('fill', statusColors[n.status] || '#8b949e');
+      c.setAttribute('opacity', '0.8');
+      c.classList.add('node-icon');
+      g.appendChild(c);
+    } else {
+      const c = document.createElementNS(SVG_NS, 'circle');
+      c.setAttribute('cx', iconX); c.setAttribute('cy', iconY);
+      c.setAttribute('r', '2.5');
+      c.setAttribute('fill', statusColors[n.status] || '#8b949e');
+      c.setAttribute('opacity', '0.6');
+      c.classList.add('node-icon');
+      g.appendChild(c);
+    }
+
+    // Title text (measured, with ellipsis)
+    const textX = n.x + 26;
     const fontSize = n.type === 'epic' ? 13 : n.type === 'task' ? 12 : 11;
-    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    text.setAttribute('x', n.x + 12);
-    text.setAttribute('y', n.y + n.h / 2 - (n.type === 'epic' ? 2 : 0));
+    const fontWeight = n.type === 'epic' ? '600' : '400';
+    const availW = n.w - 34;
+    let displayTitle = n.title;
+    const fullW = measureTextWidth(n.title, fontSize, fontWeight);
+    if (fullW > availW) {
+      let lo = 0, hi = n.title.length;
+      while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1;
+        if (measureTextWidth(n.title.slice(0, mid) + '\u2026', fontSize, fontWeight) <= availW) lo = mid;
+        else hi = mid - 1;
+      }
+      displayTitle = n.title.slice(0, lo) + '\u2026';
+    }
+    const text = document.createElementNS(SVG_NS, 'text');
+    text.setAttribute('x', textX);
+    text.setAttribute('y', iconY);
     text.setAttribute('dominant-baseline', 'central');
     text.setAttribute('fill', '#e6edf3');
     text.setAttribute('font-size', fontSize);
-    text.setAttribute('font-weight', n.type === 'epic' ? '600' : '400');
-    const maxChars = Math.floor((n.w - 20) / (fontSize * 0.58));
-    text.textContent = n.title.length > maxChars ? n.title.slice(0, maxChars - 1) + '\u2026' : n.title;
+    text.setAttribute('font-weight', fontWeight);
+    text.classList.add('node-title');
+    text.textContent = displayTitle;
     g.appendChild(text);
 
-    // ID label for epics
-    if (n.type === 'epic') {
-      const idText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      idText.setAttribute('x', n.x + 12);
-      idText.setAttribute('y', n.y + n.h / 2 + 12);
-      idText.setAttribute('dominant-baseline', 'central');
-      idText.setAttribute('fill', '#8b949e');
-      idText.setAttribute('font-size', '10');
-      idText.setAttribute('font-family', 'monospace');
-      idText.textContent = n.id;
-      g.appendChild(idText);
+    // Priority pip (top-right, critical/high only)
+    if (n.priority <= 1) {
+      const pip = document.createElementNS(SVG_NS, 'circle');
+      pip.setAttribute('cx', n.x + n.w - 8);
+      pip.setAttribute('cy', n.y + 8);
+      pip.setAttribute('r', '3');
+      pip.setAttribute('fill', n.priority === 0 ? '#f85149' : '#f0883e');
+      pip.classList.add('node-pip');
+      g.appendChild(pip);
     }
 
     svg.appendChild(g);
   });
 
+  // Store references for interaction
+  _graphNodes = nodes;
+  _graphHierLinks = hierLinks;
+  _graphDepLinks = depLinks;
+  _graphNodeMap = nodeMap;
+
+  // Populate epic filter dropdown
+  populateEpicFilter();
+
   // ── Interaction ──
-  setupGraphInteraction(svg, nodes, hierLinks.concat(depLinks));
+  setupGraphInteraction(svg);
+}
+
+// ── Reposition a single node's SVG group ──
+function repositionNodeGroup(svg, node) {
+  const g = svg.querySelector(`g[data-node-id="${node.id}"]`);
+  if (!g) return;
+  const bg = g.querySelector('.node-bg');
+  if (bg) { bg.setAttribute('x', node.x); bg.setAttribute('y', node.y); }
+  const bar = g.querySelector('.node-bar');
+  if (bar) { bar.setAttribute('x', node.x); bar.setAttribute('y', node.y + 2); }
+  const icon = g.querySelector('.node-icon');
+  if (icon) {
+    const iconX = node.x + 14, iconY = node.y + node.h / 2;
+    if (icon.tagName === 'polygon') {
+      icon.setAttribute('points', `${iconX},${iconY - 5} ${iconX + 5},${iconY} ${iconX},${iconY + 5} ${iconX - 5},${iconY}`);
+    } else {
+      icon.setAttribute('cx', iconX); icon.setAttribute('cy', iconY);
+    }
+  }
+  const text = g.querySelector('.node-title');
+  if (text) { text.setAttribute('x', node.x + 26); text.setAttribute('y', node.y + node.h / 2); }
+  const pip = g.querySelector('.node-pip');
+  if (pip) { pip.setAttribute('cx', node.x + node.w - 8); pip.setAttribute('cy', node.y + 8); }
+}
+
+// ── Update edges connected to a node ──
+function updateConnectedEdges(svg, node) {
+  svg.querySelectorAll('.edge-hierarchy, .edge-dep').forEach(path => {
+    const sid = path.dataset.sourceId;
+    const tid = path.dataset.targetId;
+    if (sid !== node.id && tid !== node.id) return;
+    const src = _graphNodeMap[sid];
+    const tgt = _graphNodeMap[tid];
+    if (!src || !tgt) return;
+    const sx = src.x + src.w / 2, sy = src.y + src.h;
+    const tx = tgt.x + tgt.w / 2, ty = tgt.y;
+    if (path.classList.contains('edge-hierarchy')) {
+      const my = sy + (ty - sy) / 2;
+      path.setAttribute('d', `M${sx},${sy} C${sx},${my} ${tx},${my} ${tx},${ty}`);
+    } else {
+      const dx = tx - sx;
+      const midY = sy + (ty - sy) / 2;
+      const curveOffset = Math.min(40, Math.abs(dx) * 0.3);
+      path.setAttribute('d', `M${sx},${sy} C${sx},${midY - curveOffset} ${tx},${midY + curveOffset} ${tx},${ty}`);
+    }
+  });
+}
+
+// ── SVG coordinate helper ──
+function svgPoint(svg, clientX, clientY) {
+  const pt = svg.createSVGPoint();
+  pt.x = clientX; pt.y = clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+
+// ── Hover highlight ──
+function highlightConnections(svg, nodeId) {
+  const connected = new Set([nodeId]);
+  _graphHierLinks.forEach(l => {
+    if (l.source.id === nodeId) connected.add(l.target.id);
+    if (l.target.id === nodeId) connected.add(l.source.id);
+  });
+  _graphDepLinks.forEach(l => {
+    if (l.source.id === nodeId) connected.add(l.target.id);
+    if (l.target.id === nodeId) connected.add(l.source.id);
+  });
+
+  svg.querySelectorAll('.graph-node').forEach(g => {
+    const nid = g.dataset.nodeId;
+    const node = _graphNodeMap[nid];
+    const isDone = node && node.status === 'done';
+    if (connected.has(nid)) {
+      g.style.opacity = nid === nodeId ? '1' : (isDone ? '0.7' : '0.9');
+    } else {
+      g.style.opacity = '0.12';
+    }
+  });
+  svg.querySelectorAll('.edge-hierarchy, .edge-dep').forEach(path => {
+    const src = path.dataset.sourceId;
+    const tgt = path.dataset.targetId;
+    if (connected.has(src) && connected.has(tgt)) {
+      path.style.opacity = path.classList.contains('edge-dep') ? '1' : '0.5';
+    } else {
+      path.style.opacity = '0.05';
+    }
+  });
+}
+
+function clearHighlight(svg) {
+  svg.querySelectorAll('.graph-node').forEach(g => {
+    const node = _graphNodeMap[g.dataset.nodeId];
+    g.style.opacity = node && node.status === 'done' ? '0.6' : '';
+  });
+  svg.querySelectorAll('.edge-hierarchy, .edge-dep').forEach(path => {
+    path.style.opacity = path.dataset.baseOpacity || '';
+  });
 }
 
 // ── Graph interaction ──
-function setupGraphInteraction(svg, nodes, links) {
+function setupGraphInteraction(svg) {
   if (_graphHandlers) {
     svg.removeEventListener('mousedown', _graphHandlers.mousedown);
     svg.removeEventListener('mousemove', _graphHandlers.mousemove);
@@ -724,20 +987,45 @@ function setupGraphInteraction(svg, nodes, links) {
   let isPanning = false;
   let panStart = null;
   let didDrag = false;
+  let dragNode = null;
+  let dragOffset = null;
+  let hoveredNodeId = null;
 
   const handlers = {};
 
   handlers.mousedown = e => {
     didDrag = false;
-    if (!e.target.closest('g[data-node-id]')) {
+    const nodeG = e.target.closest('g[data-node-id]');
+    if (nodeG) {
+      const nid = nodeG.dataset.nodeId;
+      dragNode = _graphNodeMap[nid];
+      if (dragNode) {
+        const pt = svgPoint(svg, e.clientX, e.clientY);
+        dragOffset = { dx: pt.x - dragNode.x, dy: pt.y - dragNode.y };
+        svg.classList.add('dragging-node');
+      }
+      e.preventDefault();
+    } else {
       isPanning = true;
       panStart = { mx: e.clientX, my: e.clientY, vx: graphViewBox.x, vy: graphViewBox.y };
       svg.classList.add('panning');
-      e.preventDefault();
     }
+    e.preventDefault();
   };
 
   handlers.mousemove = e => {
+    // Node drag
+    if (dragNode && dragOffset) {
+      const pt = svgPoint(svg, e.clientX, e.clientY);
+      dragNode.x = pt.x - dragOffset.dx;
+      dragNode.y = pt.y - dragOffset.dy;
+      dragNode._userPlaced = true;
+      repositionNodeGroup(svg, dragNode);
+      updateConnectedEdges(svg, dragNode);
+      didDrag = true;
+      return;
+    }
+    // Pan
     if (isPanning && panStart) {
       const dx = e.clientX - panStart.mx;
       const dy = e.clientY - panStart.my;
@@ -747,12 +1035,16 @@ function setupGraphInteraction(svg, nodes, links) {
       graphViewBox.y = panStart.vy - dy * scale;
       svg.setAttribute('viewBox', `${graphViewBox.x} ${graphViewBox.y} ${graphViewBox.w} ${graphViewBox.h}`);
     }
-    // Tooltip
+    // Hover highlight + tooltip
     const nodeG = e.target.closest('g[data-node-id]');
     const tooltip = document.getElementById('graph-tooltip');
     if (nodeG) {
       const nid = nodeG.dataset.nodeId;
-      const n = nodes.find(nn => nn.id === nid);
+      if (hoveredNodeId !== nid) {
+        hoveredNodeId = nid;
+        highlightConnections(svg, nid);
+      }
+      const n = _graphNodeMap[nid];
       if (n) {
         tooltip.innerHTML = `<div class="tt-title">${esc(n.title)}</div>
           <div class="tt-meta">${n.id} &middot; ${n.type} &middot; ${n.status} &middot; ${priorityLabels[n.priority]}</div>
@@ -763,17 +1055,28 @@ function setupGraphInteraction(svg, nodes, links) {
         tooltip.classList.add('visible');
       }
     } else {
+      if (hoveredNodeId) {
+        hoveredNodeId = null;
+        clearHighlight(svg);
+      }
       tooltip.classList.remove('visible');
     }
   };
 
   handlers.mouseup = () => {
+    if (dragNode) {
+      _nodePositionCache[dragNode.id] = { x: dragNode.x, y: dragNode.y, userPlaced: true };
+    }
+    dragNode = null;
+    dragOffset = null;
     isPanning = false;
     panStart = null;
     svg.classList.remove('panning');
+    svg.classList.remove('dragging-node');
   };
 
   handlers.mouseleave = () => {
+    if (hoveredNodeId) { hoveredNodeId = null; clearHighlight(svg); }
     document.getElementById('graph-tooltip').classList.remove('visible');
   };
 
@@ -807,6 +1110,52 @@ function setupGraphInteraction(svg, nodes, links) {
   _graphHandlers = handlers;
 }
 
+// ── Filter controls ──
+function populateEpicFilter() {
+  const sel = document.getElementById('filter-epic');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">All epics</option>';
+  epicList.forEach(e => {
+    const opt = document.createElement('option');
+    opt.value = e.id;
+    opt.textContent = e.title;
+    sel.appendChild(opt);
+  });
+  sel.value = current;
+}
+
+function applyGraphFilters() {
+  const svg = document.getElementById('graph-svg');
+  const filterStatus = document.getElementById('filter-status').value;
+  const filterType = document.getElementById('filter-type').value;
+  const filterEpic = document.getElementById('filter-epic').value;
+
+  const visibleIds = new Set();
+  _graphNodes.forEach(n => {
+    let show = true;
+    if (filterStatus && n.status !== filterStatus) show = false;
+    if (filterType && n.type !== filterType) show = false;
+    if (filterEpic) {
+      if (n.type === 'epic' && n.id !== filterEpic) show = false;
+      if (n.type === 'task' && n.parentId !== filterEpic) show = false;
+      if (n.type === 'subtask') {
+        const parent = _graphNodeMap[n.parentId];
+        if (!parent || parent.parentId !== filterEpic) show = false;
+      }
+    }
+    const g = svg.querySelector(`g[data-node-id="${n.id}"]`);
+    if (g) g.style.display = show ? '' : 'none';
+    if (show) visibleIds.add(n.id);
+  });
+
+  // Hide edges where either end is hidden
+  svg.querySelectorAll('.edge-hierarchy, .edge-dep').forEach(path => {
+    const show = visibleIds.has(path.dataset.sourceId) && visibleIds.has(path.dataset.targetId);
+    path.style.display = show ? '' : 'none';
+  });
+}
+
+// ── Zoom/fit controls ──
 function graphZoom(factor) {
   const svg = document.getElementById('graph-svg');
   if (!graphViewBox) return;
@@ -819,9 +1168,48 @@ function graphZoom(factor) {
   svg.setAttribute('viewBox', `${graphViewBox.x} ${graphViewBox.y} ${graphViewBox.w} ${graphViewBox.h}`);
 }
 
+function graphFitToView() {
+  const svg = document.getElementById('graph-svg');
+  if (!_graphNodes.length) return;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  _graphNodes.forEach(n => {
+    const g = svg.querySelector(`g[data-node-id="${n.id}"]`);
+    if (g && g.style.display !== 'none') {
+      minX = Math.min(minX, n.x);
+      minY = Math.min(minY, n.y);
+      maxX = Math.max(maxX, n.x + n.w);
+      maxY = Math.max(maxY, n.y + n.h);
+    }
+  });
+  if (minX === Infinity) return;
+  const pad = 60;
+  graphViewBox = { x: minX - pad, y: minY - pad, w: maxX - minX + pad * 2, h: maxY - minY + pad * 2 };
+  svg.setAttribute('viewBox', `${graphViewBox.x} ${graphViewBox.y} ${graphViewBox.w} ${graphViewBox.h}`);
+}
+
 function graphReset() {
-  if (!graphViewBox) return;
+  _nodePositionCache = {};
+  document.getElementById('filter-status').value = '';
+  document.getElementById('filter-type').value = '';
+  document.getElementById('filter-epic').value = '';
   renderGraph();
+}
+
+// ── Smart graph data refresh ──
+function refreshGraphData() {
+  // Cache current positions before refresh
+  _graphNodes.forEach(n => {
+    _nodePositionCache[n.id] = { x: n.x, y: n.y, userPlaced: !!n._userPlaced };
+  });
+  // Re-render will restore _userPlaced positions from cache
+  const savedVB = graphViewBox ? { ...graphViewBox } : null;
+  renderGraph();
+  if (savedVB) {
+    graphViewBox = savedVB;
+    const svg = document.getElementById('graph-svg');
+    svg.setAttribute('viewBox', `${savedVB.x} ${savedVB.y} ${savedVB.w} ${savedVB.h}`);
+  }
+  applyGraphFilters();
 }
 
 // ── Drawer ──
