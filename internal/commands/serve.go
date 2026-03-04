@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -60,7 +59,7 @@ func newServeCmd() *cobra.Command {
 				child.Stdin = devnull
 				child.Stdout = devnull
 				child.Stderr = devnull
-				child.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+				setSysProcAttr(child)
 				if err := child.Start(); err != nil {
 					outputError(fmt.Sprintf("failed to start server: %v", err))
 					return nil
@@ -72,7 +71,6 @@ func newServeCmd() *cobra.Command {
 					if _, err := os.Stat(pidfilePath()); err == nil {
 						break
 					}
-					// sleep 50ms
 					sleepMs(50)
 				}
 
@@ -114,13 +112,7 @@ func newServeCmd() *cobra.Command {
 				return nil
 			}
 
-			proc, err := os.FindProcess(pid)
-			if err != nil {
-				outputError(fmt.Sprintf("failed to find process: %v", err))
-				return nil
-			}
-
-			if err := proc.Signal(syscall.SIGTERM); err != nil {
+			if err := stopProcess(pid); err != nil {
 				outputError(fmt.Sprintf("failed to stop server: %v", err))
 				return nil
 			}
@@ -148,13 +140,4 @@ func readPid() (int, error) {
 
 func sleepMs(ms int) {
 	time.Sleep(time.Duration(ms) * time.Millisecond)
-}
-
-func processRunning(pid int) bool {
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-	err = proc.Signal(syscall.Signal(0))
-	return err == nil
 }
