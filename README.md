@@ -97,20 +97,28 @@ werk session end --summary "Implemented login endpoint, filed 2 new tasks" --age
 
 ### Agent Skill
 
-Werk ships as an [Agent Skill](https://agentskills.io) in the `werk/` directory. Install it with:
+Werk ships as an [Agent Skill](https://agentskills.io) compatible with Claude Code, Cursor, Copilot, and other agents that support the open skills standard. Browse skills at [skills.sh](https://skills.sh).
+
+**Install the skill globally (available in all projects):**
+
+```bash
+npx skills add zackbart/werk -g
+```
+
+**Install for the current project only:**
 
 ```bash
 npx skills add zackbart/werk
 ```
 
-Or reference `werk/SKILL.md` directly from your `CLAUDE.md`:
+**Or reference it manually** — add to your `CLAUDE.md` (or equivalent agent config):
 
 ```markdown
 ## Task Tracking
 Read `werk/SKILL.md` before starting any work.
 ```
 
-The skill covers session lifecycle, issue classification, titling conventions, priority levels, dependency management, and the full CLI reference.
+The skill teaches agents the full werk workflow: session lifecycle, issue classification, titling conventions, priority levels, dependency management, and the complete CLI reference.
 
 ## Web UI
 
