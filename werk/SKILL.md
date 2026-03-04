@@ -230,6 +230,20 @@ Dependencies can cross epic boundaries. Cycles are rejected automatically.
 
 ---
 
+## Migrating from Beads
+
+If this project uses [Beads](https://github.com/steveyegge/beads) (`.beads/` directory exists), see [Migration Guide](references/MIGRATION.md) for a full walkthrough. The short version:
+
+1. Export from beads: `bd export` or `bd list --format json`
+2. Create matching epics, tasks, and subtasks in werk
+3. Re-create `blocks` dependencies (other dep types are dropped)
+4. Migrate compacted summaries as decisions
+5. Record the migration as a decision
+
+Migration is lossy by design — messages, labels, molecules, wisps, and named dependency types beyond "blocks" are not carried over.
+
+---
+
 ## Quick reference
 
 ```
