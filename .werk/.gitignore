@@ -1,0 +1,3 @@
+.werk/*.db-wal
+.werk/*.db-shm
+.werk/session.lock

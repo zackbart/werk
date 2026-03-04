@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>werk</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --yellow: #d29922;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --orange: #f0883e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); }
+
+  /* Header */
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .header h1 { font-size: 20px; font-weight: 600; }
+  .header h1 span { color: var(--accent); }
+  .tabs { display: flex; gap: 4px; }
+  .tab { padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; color: var(--text-muted); border: none; background: none; transition: all 0.15s; }
+  .tab:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+  .tab.active { color: var(--text); background: rgba(255,255,255,0.1); }
+  .stats { display: flex; gap: 16px; font-size: 13px; color: var(--text-muted); }
+  .stat-val { font-weight: 600; color: var(--text); }
+
+  /* Board */
+  .board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 24px; height: calc(100vh - 65px); overflow: hidden; }
+  .column { background: var(--surface); border-radius: 8px; border: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+  .column-header { padding: 12px 16px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .column-header .count { background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+  .column-cards { padding: 8px; overflow-y: auto; flex: 1; }
+
+  .card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s; }
+  .card:hover { border-color: var(--accent); }
+  .card-title { font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+  .card-meta { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--text-muted); }
+  .card-id { font-family: monospace; }
+  .card-epic { color: var(--purple); font-size: 11px; }
+
+  .priority-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+  .priority-0 { background: rgba(248,81,73,0.2); color: var(--red); }
+  .priority-1 { background: rgba(240,136,62,0.2); color: var(--orange); }
+  .priority-2 { background: rgba(210,153,34,0.2); color: var(--yellow); }
+  .priority-3 { background: rgba(139,148,158,0.15); color: var(--text-muted); }
+  .priority-4 { background: rgba(139,148,158,0.1); color: var(--text-muted); }
+
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .status-open { background: var(--text-muted); }
+  .status-in_progress { background: var(--yellow); }
+  .status-blocked { background: var(--red); }
+  .status-done { background: var(--green); }
+
+  /* Epic group */
+  .epic-group { margin-bottom: 12px; }
+  .epic-label { font-size: 11px; color: var(--purple); padding: 4px 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+
+  /* Graph view */
+  .graph-container { padding: 24px; height: calc(100vh - 65px); }
+  .graph-container svg { width: 100%; height: 100%; background: var(--surface); border-radius: 8px; border: 1px solid var(--border); }
+
+  /* Decisions */
+  .decisions-container { padding: 24px; max-width: 800px; margin: 0 auto; }
+  .decision-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+  .decision-card h3 { font-size: 15px; margin-bottom: 8px; }
+  .decision-card p { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+  .decision-meta { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+
+  /* Audit drawer */
+  .drawer-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; display: none; }
+  .drawer-overlay.open { display: block; }
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 480px; background: var(--surface); border-left: 1px solid var(--border); z-index: 101; transform: translateX(100%); transition: transform 0.2s ease; overflow-y: auto; }
+  .drawer.open { transform: translateX(0); }
+  .drawer-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .drawer-header h2 { font-size: 16px; }
+  .drawer-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 20px; padding: 4px 8px; }
+  .drawer-body { padding: 16px 20px; }
+  .drawer-task-info { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .drawer-task-info h3 { font-size: 15px; margin-bottom: 4px; }
+  .drawer-task-info .meta { font-size: 13px; color: var(--text-muted); }
+
+  .audit-entry { padding: 8px 0; border-bottom: 1px solid rgba(48,54,61,0.5); font-size: 13px; }
+  .audit-entry:last-child { border-bottom: none; }
+  .audit-field { font-weight: 600; color: var(--accent); }
+  .audit-time { color: var(--text-muted); font-size: 12px; }
+  .audit-by { font-size: 11px; padding: 1px 6px; border-radius: 3px; }
+  .audit-by-agent { background: rgba(188,140,255,0.2); color: var(--purple); }
+  .audit-by-human { background: rgba(88,166,255,0.2); color: var(--accent); }
+  .audit-values { margin-top: 4px; font-size: 12px; color: var(--text-muted); }
+  .audit-old { text-decoration: line-through; }
+  .audit-new { color: var(--green); }
+
+  .view { display: none; }
+  .view.active { display: block; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>werk</span></h1>
+  <div class="tabs">
+    <button class="tab active" data-view="board">Board</button>
+    <button class="tab" data-view="graph">Graph</button>
+    <button class="tab" data-view="decisions">Decisions</button>
+  </div>
+  <div class="stats" id="stats"></div>
+</div>
+
+<div id="board-view" class="view active">
+  <div class="board">
+    <div class="column">
+      <div class="column-header">Open <span class="count" id="count-open">0</span></div>
+      <div class="column-cards" id="col-open"></div>
+    </div>
+    <div class="column">
+      <div class="column-header">In Progress <span class="count" id="count-in_progress">0</span></div>
+      <div class="column-cards" id="col-in_progress"></div>
+    </div>
+    <div class="column">
+      <div class="column-header">Blocked <span class="count" id="count-blocked">0</span></div>
+      <div class="column-cards" id="col-blocked"></div>
+    </div>
+    <div class="column">
+      <div class="column-header">Done <span class="count" id="count-done">0</span></div>
+      <div class="column-cards" id="col-done"></div>
+    </div>
+  </div>
+</div>
+
+<div id="graph-view" class="view">
+  <div class="graph-container">
+    <svg id="graph-svg"></svg>
+  </div>
+</div>
+
+<div id="decisions-view" class="view">
+  <div class="decisions-container" id="decisions-list"></div>
+</div>
+
+<div class="drawer-overlay" id="drawer-overlay"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <h2>Task Details</h2>
+    <button class="drawer-close" id="drawer-close">&times;</button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+</div>
+
+<script>
+const API = '';
+let epics = {}, tasks = [], allTasks = [], deps = [];
+
+const priorityLabels = ['Critical', 'High', 'Normal', 'Low', 'Backlog'];
+
+async function fetchJSON(url) {
+  const res = await fetch(API + url);
+  return res.json();
+}
+
+async function loadData() {
+  const [status, epicList, taskList, decList, depList] = await Promise.all([
+    fetchJSON('/api/status'),
+    fetchJSON('/api/epics'),
+    fetchJSON('/api/tasks'),
+    fetchJSON('/api/decisions'),
+    fetchJSON('/api/dependencies'),
+  ]);
+
+  // Stats
+  document.getElementById('stats').innerHTML =
+    `<span><span class="stat-val">${status.open||0}</span> open</span>` +
+    `<span><span class="stat-val">${status.in_progress||0}</span> active</span>` +
+    `<span><span class="stat-val">${status.blocked||0}</span> blocked</span>` +
+    `<span><span class="stat-val">${status.done||0}</span> done</span>`;
+
+  // Index epics
+  epics = {};
+  epicList.forEach(e => epics[e.id] = e);
+  tasks = taskList;
+  allTasks = [...epicList, ...taskList];
+  deps = depList;
+
+  renderBoard(taskList, epicList);
+  renderDecisions(decList);
+
+  // Update counts
+  const counts = { open: 0, in_progress: 0, blocked: 0, done: 0 };
+  taskList.forEach(t => counts[t.status] = (counts[t.status] || 0) + 1);
+  Object.keys(counts).forEach(s => {
+    document.getElementById('count-' + s).textContent = counts[s];
+  });
+}
+
+function renderBoard(tasks, epicList) {
+  const cols = { open: [], in_progress: [], blocked: [], done: [] };
+
+  // Group tasks by epic within each status
+  const byStatusEpic = {};
+  tasks.forEach(t => {
+    const key = t.status;
+    if (!byStatusEpic[key]) byStatusEpic[key] = {};
+    const epicId = t.epic_id || 'none';
+    if (!byStatusEpic[key][epicId]) byStatusEpic[key][epicId] = [];
+    byStatusEpic[key][epicId].push(t);
+  });
+
+  ['open', 'in_progress', 'blocked', 'done'].forEach(status => {
+    const col = document.getElementById('col-' + status);
+    col.innerHTML = '';
+    const groups = byStatusEpic[status] || {};
+
+    Object.keys(groups).forEach(epicId => {
+      const epic = epics[epicId];
+      if (epic) {
+        const label = document.createElement('div');
+        label.className = 'epic-label';
+        label.textContent = epic.title;
+        col.appendChild(label);
+      }
+      groups[epicId].forEach(t => {
+        col.appendChild(createCard(t));
+      });
+    });
+  });
+}
+
+function createCard(t) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.onclick = () => openDrawer(t.id);
+
+  const blockerCount = (t.blockers && t.blockers.length) || 0;
+  const blockerBadge = blockerCount > 0 ? `<span style="color:var(--red)">${blockerCount} blocker${blockerCount>1?'s':''}</span>` : '';
+
+  card.innerHTML = `
+    <div class="card-title">${esc(t.title)}</div>
+    <div class="card-meta">
+      <span class="card-id">${t.id}</span>
+      <span class="priority-badge priority-${t.priority}">${priorityLabels[t.priority]}</span>
+      ${blockerBadge}
+    </div>
+  `;
+  return card;
+}
+
+function renderDecisions(decs) {
+  const container = document.getElementById('decisions-list');
+  if (!decs.length) {
+    container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px">No decisions recorded yet.</p>';
+    return;
+  }
+  container.innerHTML = decs.map(d => `
+    <div class="decision-card">
+      <h3>${esc(d.summary)}</h3>
+      ${d.rationale ? `<p>${esc(d.rationale)}</p>` : ''}
+      <div class="decision-meta">
+        <span class="card-id">${d.id}</span> &middot;
+        ${d.created_at} &middot;
+        <span class="audit-by audit-by-${d.created_by}">${d.created_by}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function openDrawer(taskId) {
+  const [task, audit] = await Promise.all([
+    fetchJSON('/api/tasks?status=all').then(ts => ts.find(t => t.id === taskId)),
+    fetchJSON('/api/audit/' + taskId),
+  ]);
+
+  const body = document.getElementById('drawer-body');
+
+  // If we couldn't find the task in tasks, try epics
+  let info = task;
+  if (!info) {
+    const ep = epics[taskId];
+    if (ep) info = ep;
+  }
+
+  let html = '';
+  if (info) {
+    html += `<div class="drawer-task-info">
+      <h3>${esc(info.title)}</h3>
+      <div class="meta">
+        <span class="card-id">${info.id}</span> &middot;
+        <span class="status-dot status-${info.status}"></span> ${info.status} &middot;
+        <span class="priority-badge priority-${info.priority}">${priorityLabels[info.priority]}</span>
+      </div>
+      ${info.notes ? `<p style="margin-top:8px;font-size:13px;color:var(--text-muted)">${esc(info.notes)}</p>` : ''}
+    </div>`;
+  }
+
+  html += '<h3 style="margin-bottom:12px;font-size:14px">Audit Trail</h3>';
+  if (!audit.length) {
+    html += '<p style="color:var(--text-muted);font-size:13px">No audit entries.</p>';
+  } else {
+    audit.forEach(e => {
+      html += `<div class="audit-entry">
+        <div>
+          <span class="audit-field">${e.field}</span>
+          <span class="audit-by audit-by-${e.changed_by}">${e.changed_by}</span>
+          <span class="audit-time">${e.changed_at}</span>
+        </div>
+        <div class="audit-values">
+          ${e.old_value ? `<span class="audit-old">${esc(e.old_value)}</span> → ` : ''}
+          ${e.new_value ? `<span class="audit-new">${esc(e.new_value)}</span>` : '<span style="color:var(--red)">removed</span>'}
+        </div>
+      </div>`;
+    });
+  }
+
+  body.innerHTML = html;
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawer-overlay').classList.add('open');
+}
+
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+}
+
+document.getElementById('drawer-close').onclick = closeDrawer;
+document.getElementById('drawer-overlay').onclick = closeDrawer;
+
+// Tabs
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.view + '-view').classList.add('active');
+    if (tab.dataset.view === 'graph') renderGraph();
+  };
+});
+
+// Graph view using simple SVG (no D3 dependency to keep it self-contained)
+function renderGraph() {
+  const svg = document.getElementById('graph-svg');
+  const rect = svg.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  svg.innerHTML = '';
+
+  if (!allTasks.length) {
+    svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="#8b949e" font-size="14">No tasks to display</text>';
+    return;
+  }
+
+  // Build nodes and links
+  const nodeMap = {};
+  const nodes = allTasks.map((t, i) => {
+    const node = { id: t.id, title: t.title, status: t.status, type: t.type, priority: t.priority,
+      x: W/2 + (Math.random() - 0.5) * W * 0.6,
+      y: H/2 + (Math.random() - 0.5) * H * 0.6,
+      vx: 0, vy: 0 };
+    nodeMap[t.id] = node;
+    return node;
+  });
+
+  // Parent-child links
+  const links = [];
+  allTasks.forEach(t => {
+    const pid = t.epic_id || t.task_id;
+    if (pid && nodeMap[pid]) {
+      links.push({ source: nodeMap[pid], target: nodeMap[t.id], type: 'hierarchy' });
+    }
+  });
+  // Dependency links
+  deps.forEach(d => {
+    if (nodeMap[d.upstream_id] && nodeMap[d.downstream_id]) {
+      links.push({ source: nodeMap[d.upstream_id], target: nodeMap[d.downstream_id], type: 'dependency' });
+    }
+  });
+
+  const statusColors = { open: '#8b949e', in_progress: '#d29922', blocked: '#f85149', done: '#3fb950' };
+  const typeRadius = { epic: 18, task: 12, subtask: 8 };
+
+  // Simple force simulation
+  function simulate() {
+    for (let iter = 0; iter < 200; iter++) {
+      // Repulsion
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i+1; j < nodes.length; j++) {
+          let dx = nodes[j].x - nodes[i].x;
+          let dy = nodes[j].y - nodes[i].y;
+          let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+          let force = 2000 / (dist * dist);
+          nodes[i].vx -= dx/dist * force;
+          nodes[i].vy -= dy/dist * force;
+          nodes[j].vx += dx/dist * force;
+          nodes[j].vy += dy/dist * force;
+        }
+      }
+      // Attraction along links
+      links.forEach(l => {
+        let dx = l.target.x - l.source.x;
+        let dy = l.target.y - l.source.y;
+        let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+        let force = (dist - 80) * 0.01;
+        l.source.vx += dx/dist * force;
+        l.source.vy += dy/dist * force;
+        l.target.vx -= dx/dist * force;
+        l.target.vy -= dy/dist * force;
+      });
+      // Center gravity
+      nodes.forEach(n => {
+        n.vx += (W/2 - n.x) * 0.001;
+        n.vy += (H/2 - n.y) * 0.001;
+        n.x += n.vx * 0.3;
+        n.y += n.vy * 0.3;
+        n.vx *= 0.9;
+        n.vy *= 0.9;
+        n.x = Math.max(30, Math.min(W-30, n.x));
+        n.y = Math.max(30, Math.min(H-30, n.y));
+      });
+    }
+  }
+  simulate();
+
+  // Render
+  // Arrow marker
+  svg.innerHTML = `<defs>
+    <marker id="arrow" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,3 L0,6" fill="#f85149"/>
+    </marker>
+    <marker id="arrow-hier" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,3 L0,6" fill="#30363d"/>
+    </marker>
+  </defs>`;
+
+  // Links
+  links.forEach(l => {
+    const isDep = l.type === 'dependency';
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', l.source.x);
+    line.setAttribute('y1', l.source.y);
+    line.setAttribute('x2', l.target.x);
+    line.setAttribute('y2', l.target.y);
+    line.setAttribute('stroke', isDep ? '#f85149' : '#30363d');
+    line.setAttribute('stroke-width', isDep ? '2' : '1');
+    line.setAttribute('stroke-dasharray', isDep ? '' : '4,4');
+    line.setAttribute('marker-end', isDep ? 'url(#arrow)' : 'url(#arrow-hier)');
+    svg.appendChild(line);
+  });
+
+  // Nodes
+  nodes.forEach(n => {
+    const r = typeRadius[n.type] || 12;
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.style.cursor = 'pointer';
+    g.onclick = () => openDrawer(n.id);
+
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', n.x);
+    circle.setAttribute('cy', n.y);
+    circle.setAttribute('r', r);
+    circle.setAttribute('fill', statusColors[n.status] || '#8b949e');
+    circle.setAttribute('opacity', '0.8');
+    circle.setAttribute('stroke', '#e6edf3');
+    circle.setAttribute('stroke-width', n.type === 'epic' ? '2' : '1');
+    g.appendChild(circle);
+
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', n.x);
+    text.setAttribute('y', n.y + r + 14);
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('fill', '#8b949e');
+    text.setAttribute('font-size', '10');
+    text.textContent = n.title.length > 20 ? n.title.slice(0,18) + '...' : n.title;
+    g.appendChild(text);
+
+    svg.appendChild(g);
+  });
+}
+
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// Load on start
+loadData();
+// Auto-refresh every 5 seconds
+setInterval(loadData, 5000);
+</script>
+</body>
+</html>

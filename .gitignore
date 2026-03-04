@@ -1,0 +1,18 @@
+# Binary
+werk-bin
+
+# Werk data
+.werk/*.db-wal
+.werk/*.db-shm
+.werk/session.lock
+.werk/serve.pid
+.werk/tasks.db
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
