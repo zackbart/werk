@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -71,6 +72,23 @@ func getDBPath() string {
 	if env := os.Getenv("WERK_DB"); env != "" {
 		return env
 	}
+	// Walk up directory tree to find .werk/tasks.db
+	dir, err := os.Getwd()
+	if err != nil {
+		return ".werk/tasks.db"
+	}
+	for {
+		candidate := filepath.Join(dir, ".werk", "tasks.db")
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break // reached filesystem root
+		}
+		dir = parent
+	}
+	// Not found — default to cwd (for init)
 	return ".werk/tasks.db"
 }
 
