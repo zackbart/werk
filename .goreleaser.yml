@@ -1,0 +1,63 @@
+version: 2
+
+project_name: werk
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./cmd/werk
+    binary: werk
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X werk/internal/commands.version={{.Version}}
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+brews:
+  - repository:
+      owner: zackbart
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/zackbart/werk"
+    description: "Local-first task and decision tracker for AI-assisted development"
+    license: "MIT"
+    install: |
+      bin.install "werk"
+    test: |
+      system "#{bin}/werk", "--version"
+
+release:
+  github:
+    owner: zackbart
+    name: werk
+  draft: false
+  prerelease: auto
+  extra_files:
+    - glob: install.sh

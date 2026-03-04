@@ -10,17 +10,33 @@ Coding agents have a fixed context window. On long-horizon tasks they lose track
 
 ## Install
 
+**Homebrew (macOS/Linux):**
+
 ```bash
-go install werk/cmd/werk@latest
+brew install zackbart/tap/werk
 ```
 
-Or build from source:
+**Shell script:**
 
 ```bash
-git clone https://github.com/yourusername/werk.git
+curl -fsSL https://raw.githubusercontent.com/zackbart/werk/main/install.sh | sh
+```
+
+**Go:**
+
+```bash
+go install github.com/zackbart/werk/cmd/werk@latest
+```
+
+**From source:**
+
+```bash
+git clone https://github.com/zackbart/werk.git
 cd werk
 go build -o werk ./cmd/werk/
 ```
+
+Or download a binary directly from [GitHub Releases](https://github.com/zackbart/werk/releases).
 
 ## Quick start
 
@@ -84,7 +100,7 @@ werk session end --summary "Implemented login endpoint, filed 2 new tasks" --age
 Werk ships as an [Agent Skill](https://agentskills.io) in the `werk/` directory. Install it with:
 
 ```bash
-npx skills add yourusername/werk
+npx skills add zackbart/werk
 ```
 
 Or reference `werk/SKILL.md` directly from your `CLAUDE.md`:
