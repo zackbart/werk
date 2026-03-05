@@ -206,6 +206,7 @@
     <div class="graph-tooltip" id="graph-tooltip"></div>
     <div class="graph-filters">
       <select id="filter-status" class="graph-filter-select" onchange="applyGraphFilters()">
+        <option value="not_done" selected>Open items</option>
         <option value="">All statuses</option>
         <option value="open">Open</option>
         <option value="in_progress">In Progress</option>
@@ -533,23 +534,85 @@ function renderGraph() {
     return;
   }
 
-  const layerGap = 100;
-  const nodeGapX = 28;
+  const layerGapY = 70;
+  const siblingGapX = 20;
+  const treeGapX = 48;
 
   // ── Build node objects with measured sizes ──
   const nodeMap = {};
-  const layers = [[], [], []];
+  const allNodes = [];
 
   allTasks.forEach(t => {
     const layer = t.type === 'epic' ? 0 : t.type === 'task' ? 1 : 2;
     const n = { id: t.id, title: t.title, status: t.status, type: t.type,
       priority: t.priority, notes: t.notes, parentId: t.epic_id || t.task_id,
-      x: 0, y: 0, w: 0, h: 0, layer, _userPlaced: false };
+      x: 0, y: 0, w: 0, h: 0, layer, _userPlaced: false, children: [] };
     computeNodeSize(n);
     nodeMap[n.id] = n;
-    layers[layer].push(n);
+    allNodes.push(n);
   });
-  const nodes = [...layers[0], ...layers[1], ...layers[2]];
+
+  // ── Build parent→children tree ──
+  const roots = [];
+  allNodes.forEach(n => {
+    if (n.parentId && nodeMap[n.parentId]) {
+      nodeMap[n.parentId].children.push(n);
+    } else {
+      roots.push(n);
+    }
+  });
+  // Sort children by priority then title
+  Object.values(nodeMap).forEach(n => {
+    n.children.sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title));
+  });
+  // Sort roots: epics first by priority, then orphan tasks, then orphan subtasks
+  roots.sort((a, b) => {
+    const typeOrder = { epic: 0, task: 1, subtask: 2 };
+    if (typeOrder[a.type] !== typeOrder[b.type]) return typeOrder[a.type] - typeOrder[b.type];
+    return a.priority - b.priority || a.title.localeCompare(b.title);
+  });
+
+  // ── Compute subtree widths bottom-up ──
+  function computeSubtreeWidth(node) {
+    if (node.children.length === 0) {
+      node._subtreeW = node.w;
+      return node._subtreeW;
+    }
+    const childrenW = node.children.reduce((sum, c) => sum + computeSubtreeWidth(c), 0)
+      + (node.children.length - 1) * siblingGapX;
+    node._subtreeW = Math.max(node.w, childrenW);
+    return node._subtreeW;
+  }
+  roots.forEach(r => computeSubtreeWidth(r));
+
+  // ── Position nodes top-down ──
+  function positionTree(node, x, y) {
+    node.y = y;
+    // Center this node over its subtree
+    node.x = x + (node._subtreeW - node.w) / 2;
+
+    if (node.children.length > 0) {
+      const childrenTotalW = node.children.reduce((sum, c) => sum + c._subtreeW, 0)
+        + (node.children.length - 1) * siblingGapX;
+      let cx = x + (node._subtreeW - childrenTotalW) / 2;
+      const childY = y + node.h + layerGapY;
+      node.children.forEach(c => {
+        positionTree(c, cx, childY);
+        cx += c._subtreeW + siblingGapX;
+      });
+    }
+  }
+
+  let curX = 0;
+  roots.forEach(r => {
+    positionTree(r, curX, 50);
+    curX += r._subtreeW + treeGapX;
+  });
+
+  // ── Collect all nodes flat ──
+  const nodes = [];
+  function collectNodes(n) { nodes.push(n); n.children.forEach(c => collectNodes(c)); }
+  roots.forEach(r => collectNodes(r));
 
   // ── Build links ──
   const hierLinks = [];
@@ -565,116 +628,6 @@ function renderGraph() {
       depLinks.push({ source: nodeMap[d.upstream_id], target: nodeMap[d.downstream_id] });
     }
   });
-
-  // ── Initial ordering: sort by priority then title ──
-  layers[0].sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title));
-  const epicOrder = {};
-  layers[0].forEach((e, i) => epicOrder[e.id] = i);
-  layers[1].sort((a, b) => {
-    const ea = epicOrder[a.parentId] ?? 999;
-    const eb = epicOrder[b.parentId] ?? 999;
-    return ea !== eb ? ea - eb : a.priority - b.priority;
-  });
-  const taskOrder = {};
-  layers[1].forEach((t, i) => taskOrder[t.id] = i);
-  layers[2].sort((a, b) => {
-    const ta = taskOrder[a.parentId] ?? 999;
-    const tb = taskOrder[b.parentId] ?? 999;
-    return ta !== tb ? ta - tb : a.priority - b.priority;
-  });
-
-  // ── Position assignment ──
-  function layoutLayer(arr, y) {
-    const totalW = arr.reduce((sum, n) => sum + n.w, 0) + Math.max(0, arr.length - 1) * nodeGapX;
-    let x = (W - totalW) / 2;
-    arr.forEach(n => { n.x = x; n.y = y; x += n.w + nodeGapX; });
-  }
-
-  let y0 = 50;
-  layoutLayer(layers[0], y0);
-  layoutLayer(layers[1], y0 + (layers[0].length ? layers[0][0].h : 44) + layerGap);
-  const layer2Y = y0 + (layers[0].length ? layers[0][0].h : 44) + layerGap + (layers[1].length ? layers[1][0].h : 36) + layerGap;
-  layoutLayer(layers[2], layer2Y);
-
-  // ── 4-pass barycenter refinement ──
-  function getConnectedInLayer(node, adjLayer, links) {
-    const ids = new Set();
-    links.forEach(l => {
-      if (l.source.id === node.id && adjLayer.includes(l.target)) ids.add(l.target.id);
-      if (l.target.id === node.id && adjLayer.includes(l.source)) ids.add(l.source.id);
-    });
-    // Also consider hierarchy
-    if (node.parentId && nodeMap[node.parentId] && adjLayer.includes(nodeMap[node.parentId])) {
-      ids.add(node.parentId);
-    }
-    adjLayer.forEach(n => {
-      if (n.parentId === node.id) ids.add(n.id);
-    });
-    return adjLayer.filter(n => ids.has(n.id));
-  }
-
-  function baryOrder(layer, adjLayer, allLinks) {
-    layer.forEach(n => {
-      const connected = getConnectedInLayer(n, adjLayer, allLinks);
-      if (connected.length > 0) {
-        n._bary = connected.reduce((s, c) => s + c.x + c.w / 2, 0) / connected.length;
-      } else {
-        n._bary = n.x + n.w / 2;
-      }
-    });
-    layer.sort((a, b) => a._bary - b._bary);
-  }
-
-  function resolveOverlaps(layer) {
-    for (let i = 1; i < layer.length; i++) {
-      const minX = layer[i - 1].x + layer[i - 1].w + nodeGapX;
-      if (layer[i].x < minX) layer[i].x = minX;
-    }
-    // Re-center the layer
-    if (layer.length) {
-      const first = layer[0].x;
-      const last = layer[layer.length - 1].x + layer[layer.length - 1].w;
-      const totalW = last - first;
-      const offset = (W - totalW) / 2 - first;
-      layer.forEach(n => n.x += offset);
-    }
-  }
-
-  const allLinks = [...hierLinks, ...depLinks];
-  for (let pass = 0; pass < 4; pass++) {
-    if (pass % 2 === 0) {
-      baryOrder(layers[1], layers[0], allLinks);
-      resolveOverlaps(layers[1]);
-      baryOrder(layers[2], layers[1], allLinks);
-      resolveOverlaps(layers[2]);
-    } else {
-      baryOrder(layers[1], layers[2], allLinks);
-      resolveOverlaps(layers[1]);
-      baryOrder(layers[0], layers[1], allLinks);
-      resolveOverlaps(layers[0]);
-    }
-  }
-
-  // ── Nudge children toward parents (fine-tuning) ──
-  function nudgeLayer(childLayer) {
-    for (let pass = 0; pass < 4; pass++) {
-      childLayer.forEach(n => {
-        if (n.parentId && nodeMap[n.parentId]) {
-          const p = nodeMap[n.parentId];
-          n._attraction = (p.x + p.w / 2) - (n.x + n.w / 2);
-        } else {
-          n._attraction = 0;
-        }
-      });
-      childLayer.forEach(n => { n.x += n._attraction * 0.25; });
-      for (let i = 1; i < childLayer.length; i++) {
-        const minX = childLayer[i - 1].x + childLayer[i - 1].w + nodeGapX;
-        if (childLayer[i].x < minX) childLayer[i].x = minX;
-      }
-    }
-  }
-  nudgeLayer(layers[1]);
-  nudgeLayer(layers[2]);
 
   // ── Restore cached positions for user-placed nodes ──
   nodes.forEach(n => {
@@ -739,10 +692,6 @@ function renderGraph() {
   // ── Render dependency edges (colored by resolution state) ──
   depLinks.forEach((l, i) => {
     const resolved = l.source.status === 'done';
-    const sx = l.source.x + l.source.w / 2;
-    const sy = l.source.y + l.source.h;
-    const tx = l.target.x + l.target.w / 2;
-    const ty = l.target.y;
     const path = document.createElementNS(SVG_NS, 'path');
     path.classList.add('edge-dep');
     if (!resolved) path.classList.add('active');
@@ -750,11 +699,26 @@ function renderGraph() {
     path.dataset.targetId = l.target.id;
     const baseOp = resolved ? '0.4' : '0.85';
     path.dataset.baseOpacity = baseOp;
-    // Smart bezier: route around nodes
-    const dx = tx - sx;
-    const midY = sy + (ty - sy) / 2;
-    const curveOffset = Math.min(40, Math.abs(dx) * 0.3);
-    path.setAttribute('d', `M${sx},${sy} C${sx},${midY - curveOffset} ${tx},${midY + curveOffset} ${tx},${ty}`);
+    // Connect from the nearest edges of the two nodes
+    const sCx = l.source.x + l.source.w / 2, sCy = l.source.y + l.source.h / 2;
+    const tCx = l.target.x + l.target.w / 2, tCy = l.target.y + l.target.h / 2;
+    let sx, sy, tx, ty;
+    if (Math.abs(tCy - sCy) > Math.abs(tCx - sCx)) {
+      // Mostly vertical — connect bottom-to-top
+      sx = sCx; sy = tCy > sCy ? l.source.y + l.source.h : l.source.y;
+      tx = tCx; ty = tCy > sCy ? l.target.y : l.target.y + l.target.h;
+    } else {
+      // Mostly horizontal — connect side-to-side
+      sx = tCx > sCx ? l.source.x + l.source.w : l.source.x;
+      sy = sCy;
+      tx = tCx > sCx ? l.target.x : l.target.x + l.target.w;
+      ty = tCy;
+    }
+    const mx = (sx + tx) / 2, my = (sy + ty) / 2;
+    const curveStr = Math.abs(ty - sy) > Math.abs(tx - sx)
+      ? `M${sx},${sy} C${sx},${my} ${tx},${my} ${tx},${ty}`
+      : `M${sx},${sy} C${mx},${sy} ${mx},${ty} ${tx},${ty}`;
+    path.setAttribute('d', curveStr);
     path.setAttribute('stroke', resolved ? statusColors.done : statusColors.blocked);
     path.setAttribute('stroke-width', resolved ? '1.5' : '2');
     path.setAttribute('fill', 'none');
@@ -909,16 +873,27 @@ function updateConnectedEdges(svg, node) {
     const src = _graphNodeMap[sid];
     const tgt = _graphNodeMap[tid];
     if (!src || !tgt) return;
-    const sx = src.x + src.w / 2, sy = src.y + src.h;
-    const tx = tgt.x + tgt.w / 2, ty = tgt.y;
     if (path.classList.contains('edge-hierarchy')) {
+      const sx = src.x + src.w / 2, sy = src.y + src.h;
+      const tx = tgt.x + tgt.w / 2, ty = tgt.y;
       const my = sy + (ty - sy) / 2;
       path.setAttribute('d', `M${sx},${sy} C${sx},${my} ${tx},${my} ${tx},${ty}`);
     } else {
-      const dx = tx - sx;
-      const midY = sy + (ty - sy) / 2;
-      const curveOffset = Math.min(40, Math.abs(dx) * 0.3);
-      path.setAttribute('d', `M${sx},${sy} C${sx},${midY - curveOffset} ${tx},${midY + curveOffset} ${tx},${ty}`);
+      const sCx = src.x + src.w / 2, sCy = src.y + src.h / 2;
+      const tCx = tgt.x + tgt.w / 2, tCy = tgt.y + tgt.h / 2;
+      let sx, sy, tx, ty;
+      if (Math.abs(tCy - sCy) > Math.abs(tCx - sCx)) {
+        sx = sCx; sy = tCy > sCy ? src.y + src.h : src.y;
+        tx = tCx; ty = tCy > sCy ? tgt.y : tgt.y + tgt.h;
+      } else {
+        sx = tCx > sCx ? src.x + src.w : src.x; sy = sCy;
+        tx = tCx > sCx ? tgt.x : tgt.x + tgt.w; ty = tCy;
+      }
+      const mx = (sx + tx) / 2, my = (sy + ty) / 2;
+      const curveStr = Math.abs(ty - sy) > Math.abs(tx - sx)
+        ? `M${sx},${sy} C${sx},${my} ${tx},${my} ${tx},${ty}`
+        : `M${sx},${sy} C${mx},${sy} ${mx},${ty} ${tx},${ty}`;
+      path.setAttribute('d', curveStr);
     }
   });
 }
@@ -1133,7 +1108,8 @@ function applyGraphFilters() {
   const visibleIds = new Set();
   _graphNodes.forEach(n => {
     let show = true;
-    if (filterStatus && n.status !== filterStatus) show = false;
+    if (filterStatus === 'not_done' && n.status === 'done') show = false;
+    else if (filterStatus && filterStatus !== 'not_done' && n.status !== filterStatus) show = false;
     if (filterType && n.type !== filterType) show = false;
     if (filterEpic) {
       if (n.type === 'epic' && n.id !== filterEpic) show = false;
@@ -1189,10 +1165,11 @@ function graphFitToView() {
 
 function graphReset() {
   _nodePositionCache = {};
-  document.getElementById('filter-status').value = '';
+  document.getElementById('filter-status').value = 'not_done';
   document.getElementById('filter-type').value = '';
   document.getElementById('filter-epic').value = '';
   renderGraph();
+  applyGraphFilters();
 }
 
 // ── Smart graph data refresh ──
@@ -1283,7 +1260,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById(tab.dataset.view + '-view').classList.add('active');
-    if (tab.dataset.view === 'graph') renderGraph();
+    if (tab.dataset.view === 'graph') { renderGraph(); applyGraphFilters(); }
     if (tab.dataset.view === 'epics') renderEpics();
     if (tab.dataset.view === 'board') renderBoard();
     if (tab.dataset.view === 'decisions') renderDecisions();
