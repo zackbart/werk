@@ -390,6 +390,8 @@ function toggleToday() {
 
 // ── Epics ──
 
+const _epicAccOpen = new Set();
+
 function renderEpics() {
   const container = document.getElementById('epics-list');
   const openEpics = epicList.filter(e => e.status !== 'done');
@@ -433,7 +435,8 @@ function renderEpics() {
     const statusDot = epicTasks.some(t => t.status === 'in_progress') ? 'in_progress'
       : epicTasks.some(t => t.status === 'blocked') ? 'blocked' : 'open';
 
-    return `<div class="epic-accordion" id="epic-acc-${epic.id}">
+    const isOpen = _epicAccOpen.has(epic.id);
+    return `<div class="epic-accordion${isOpen ? ' open' : ''}" id="epic-acc-${epic.id}">
       <div class="epic-accordion-header" onclick="toggleEpicAcc('${epic.id}')">
         <div class="epic-acc-left">
           <span class="chevron">&#9654;</span>
@@ -448,7 +451,7 @@ function renderEpics() {
           <span class="priority-badge priority-${epic.priority}">${priorityLabels[epic.priority]}</span>
         </div>
       </div>
-      ${epic.notes ? `<div class="epic-notes" style="display:none" id="epic-notes-${epic.id}">${esc(epic.notes)}</div>` : ''}
+      ${epic.notes ? `<div class="epic-notes" style="display:${isOpen ? 'block' : 'none'}" id="epic-notes-${epic.id}">${esc(epic.notes)}</div>` : ''}
       <div class="epic-tasks">${taskRows || '<div class="empty-state" style="padding:20px">No tasks in this epic.</div>'}</div>
     </div>`;
   }).join('');
@@ -457,6 +460,7 @@ function renderEpics() {
 function toggleEpicAcc(epicId) {
   const el = document.getElementById('epic-acc-' + epicId);
   el.classList.toggle('open');
+  if (el.classList.contains('open')) _epicAccOpen.add(epicId); else _epicAccOpen.delete(epicId);
   const notes = document.getElementById('epic-notes-' + epicId);
   if (notes) notes.style.display = el.classList.contains('open') ? 'block' : 'none';
 }
@@ -1254,17 +1258,21 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(
 
 // ── Tabs ──
 
+function switchTab(viewName) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const tab = document.querySelector(`.tab[data-view="${viewName}"]`);
+  if (tab) tab.classList.add('active');
+  document.getElementById(viewName + '-view').classList.add('active');
+  sessionStorage.setItem('werk-active-tab', viewName);
+  if (viewName === 'graph') { renderGraph(); applyGraphFilters(); }
+  if (viewName === 'epics') renderEpics();
+  if (viewName === 'board') renderBoard();
+  if (viewName === 'decisions') renderDecisions();
+}
+
 document.querySelectorAll('.tab').forEach(tab => {
-  tab.onclick = () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById(tab.dataset.view + '-view').classList.add('active');
-    if (tab.dataset.view === 'graph') { renderGraph(); applyGraphFilters(); }
-    if (tab.dataset.view === 'epics') renderEpics();
-    if (tab.dataset.view === 'board') renderBoard();
-    if (tab.dataset.view === 'decisions') renderDecisions();
-  };
+  tab.onclick = () => switchTab(tab.dataset.view);
 });
 
 // ── Utilities ──
@@ -1277,6 +1285,9 @@ function esc(s) {
 }
 
 // ── Init ──
+
+const savedTab = sessionStorage.getItem('werk-active-tab');
+if (savedTab && savedTab !== 'board') switchTab(savedTab);
 
 loadData();
 setInterval(loadData, 5000);
