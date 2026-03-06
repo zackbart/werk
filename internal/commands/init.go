@@ -13,7 +13,9 @@ import (
 )
 
 func newInitCmd() *cobra.Command {
-	return &cobra.Command{
+	var werkspaceName string
+
+	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize or upgrade .werk/tasks.db in current directory",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -36,14 +38,15 @@ func newInitCmd() *cobra.Command {
 			gitignore := "*.db-wal\n*.db-shm\nsession.lock\nserve.pid\n"
 			os.WriteFile(gitignorePath, []byte(gitignore), 0644)
 
-			// Auto-register workspace
+			// Auto-register werkspace (use --name override or directory basename)
 			if cwd, err := os.Getwd(); err == nil {
-				name := filepath.Base(cwd)
-				ws := loadWorkspaces()
-				if _, exists := ws[name]; !exists {
-					ws[name] = cwd
-					saveWorkspaces(ws)
+				name := werkspaceName
+				if name == "" {
+					name = filepath.Base(cwd)
 				}
+				ws := loadWerkspaces()
+				ws[name] = cwd
+				saveWerkspaces(ws)
 			}
 
 			// Restore from snapshot if this is a fresh init
@@ -70,4 +73,7 @@ func newInitCmd() *cobra.Command {
 			return nil
 		},
 	}
+
+	cmd.Flags().StringVar(&werkspaceName, "name", "", "werkspace name (default: directory basename)")
+	return cmd
 }

@@ -103,9 +103,9 @@ func getDBPath() string {
 	if dbPath != "" {
 		return dbPath
 	}
-	// 2. --ws <name> → resolve from workspace registry
+	// 2. --ws <name> → resolve from werkspace registry
 	if wsName != "" {
-		ws := loadWorkspaces()
+		ws := loadWerkspaces()
 		if p, ok := ws[wsName]; ok {
 			return filepath.Join(p, ".werk", "tasks.db")
 		}
@@ -173,7 +173,7 @@ func NewRootCmd() *cobra.Command {
 			if cmd.Name() == "init" || cmd.Name() == "version" || cmd.Name() == "help" {
 				return
 			}
-			if cmd.Parent() != nil && cmd.Parent().Name() == "workspace" {
+			if cmd.Parent() != nil && cmd.Parent().Name() == "werkspace" {
 				return
 			}
 			// Allow WERK_PRETTY=1 env var to enable pretty output,
@@ -192,7 +192,7 @@ func NewRootCmd() *cobra.Command {
 
 	rootCmd.PersistentFlags().StringVar(&dbPath, "db", "", "database path (default: .werk/tasks.db)")
 	rootCmd.PersistentFlags().StringVarP(&rootPath, "root", "r", "", "project root directory")
-	rootCmd.PersistentFlags().StringVar(&wsName, "ws", "", "named workspace")
+	rootCmd.PersistentFlags().StringVar(&wsName, "ws", "", "named werkspace")
 	rootCmd.PersistentFlags().BoolVar(&pretty, "pretty", false, "human-readable output")
 	rootCmd.PersistentFlags().BoolVar(&agentMode, "agent", false, "set changed_by to agent")
 
@@ -211,7 +211,7 @@ func NewRootCmd() *cobra.Command {
 		newHandoffCmd(),
 		newLogCmd(),
 		newServeCmd(),
-		newWorkspaceCmd(),
+		newWerkspaceCmd(),
 		newExportCmd(),
 		newImportCmd(),
 		newDiffCmd(),

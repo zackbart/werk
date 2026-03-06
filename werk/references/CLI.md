@@ -10,7 +10,7 @@ Override with `--db <path>`, `--root <path>`, `--ws <name>`, or the `WERK_DB` / 
 
 Resolution order:
 1. `--db <path>` flag
-2. `--ws <name>` — resolve from workspace registry
+2. `--ws <name>` — resolve from werkspace registry
 3. `--root <path>` — `<path>/.werk/tasks.db`
 4. `WERK_DB` env
 5. `WERK_ROOT` env
@@ -21,7 +21,7 @@ Resolution order:
 ```
 --db <path>     Override DB path (default: auto-discovered .werk/tasks.db)
 --root <path>   Project root directory (uses <path>/.werk/tasks.db)
---ws <name>     Named workspace (from workspace registry)
+--ws <name>     Named werkspace (from werkspace registry)
 --pretty        Human-readable output instead of JSON (or set WERK_PRETTY=1)
 --agent         Set changed_by to "agent" on all writes (default: human)
 --help          Show help
@@ -31,7 +31,7 @@ Resolution order:
 ## Init & status
 
 ```
-werk init                                          Create .werk/tasks.db
+werk init [--name <name>]                           Create .werk/tasks.db
 werk status                                        Project summary (includes active session)
 werk serve up [--port 8080]                        Start web UI in background
 werk serve down                                    Stop web UI
@@ -167,15 +167,15 @@ werk export                                        Export all data as JSON
 werk import <file>                                 Import data from JSON file
 ```
 
-## Workspaces
+## Werkspaces
 
 ```
-werk workspace add <name> [path]                   Register a workspace (default: cwd)
-werk workspace list                                List registered workspaces
-werk workspace remove <name>                       Unregister a workspace
+werk werkspace add <name> [path]                   Register a werkspace (default: cwd)
+werk werkspace list                                List registered werkspaces
+werk werkspace remove <name>                       Unregister a werkspace
 ```
 
-Workspaces let you target `.werk/` databases beyond the nearest one. Use `--ws <name>` on any command to target a named workspace.
+Werkspaces let you target `.werk/` databases beyond the nearest one. Use `--ws <name>` on any command to target a named werkspace. Config stored at `~/.config/werk/werkspaces.json`.
 
 ## Output format
 

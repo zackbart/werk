@@ -1,10 +1,24 @@
 # Changelog
 
+## v0.2.3 — 2026-03-06
+
+### Breaking changes
+
+- **Renamed `workspace` → `werkspace`** — CLI subcommand is now `werk werkspace add|list|remove`. The `--ws` flag is unchanged.
+- **Werkspace config moved** — Now always stored at `~/.config/werk/werkspaces.json` (was `~/Library/Application Support/werk/workspaces.json` on macOS). Existing `workspaces.json` files are not migrated automatically.
+
+### Improvements
+
+- **`werk init --name <name>`** — Override the auto-derived werkspace name. Without `--name`, the directory basename is used.
+- **`werk init` always updates werkspace registration** — Re-running `init` now overwrites the werkspace entry for the current name, keeping the registry in sync.
+
+---
+
 ## v0.2.2 — 2026-03-06
 
 ### Improvements
 
-- **`werk init` now upgrades existing databases** — Running `init` on an already-initialized project runs migrations, fixes `.gitignore` patterns (broken in <= 0.1.1), and registers the workspace. Returns `{"status": "upgraded"}` instead of erroring out.
+- **`werk init` now upgrades existing databases** — Running `init` on an already-initialized project runs migrations, fixes `.gitignore` patterns (broken in <= 0.1.1), and registers the werkspace. Returns `{"status": "upgraded"}` instead of erroring out.
 - **Worktree-aware DB discovery** — When `.werk/tasks.db` isn't found by walking up, `werk` uses `git rev-parse --git-common-dir` to locate the main worktree's database. Works transparently in git worktrees that live outside the repo tree.
 - **Snapshot restore on init** — If `.werk/snapshot.json` exists when running `werk init` on a fresh project, the snapshot is automatically imported. Commit snapshots via `werk export > .werk/snapshot.json` to preserve task history across fresh clones.
 
@@ -18,7 +32,7 @@
 - **`werk batch`** — Execute commands from stdin, one per line (for scripting)
 - **`werk diff`** — Show changes since the last session (or `--since <session-id>`)
 - **`werk export` / `werk import`** — Full JSON data export and import
-- **`werk workspace add|list|remove`** — Named workspace registry for multi-project setups
+- **`werk werkspace add|list|remove`** — Named werkspace registry for multi-project setups
 
 ### New subcommands
 
@@ -42,7 +56,7 @@
 - **Active session in status** — `werk status` shows the active session ID when one exists
 - **`WERK_PRETTY=1` env var** — Set pretty output as default without passing `--pretty` every time
 - **`--root` flag and `WERK_ROOT` env** — Target a project root directory directly
-- **`--ws` flag** — Target a named workspace from the registry
+- **`--ws` flag** — Target a named werkspace from the registry
 - **`--filter` on list commands** — Filter epics/tasks by title/notes substring
 - **`--archived` on list commands** — Include archived items in list output
 

@@ -9,16 +9,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func workspacesConfigPath() string {
-	if dir, err := os.UserConfigDir(); err == nil {
-		return filepath.Join(dir, "werk", "workspaces.json")
-	}
+func werkspacesConfigPath() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "werk", "workspaces.json")
+	return filepath.Join(home, ".config", "werk", "werkspaces.json")
 }
 
-func loadWorkspaces() map[string]string {
-	data, err := os.ReadFile(workspacesConfigPath())
+func loadWerkspaces() map[string]string {
+	data, err := os.ReadFile(werkspacesConfigPath())
 	if err != nil {
 		return map[string]string{}
 	}
@@ -29,8 +26,8 @@ func loadWorkspaces() map[string]string {
 	return ws
 }
 
-func saveWorkspaces(ws map[string]string) error {
-	p := workspacesConfigPath()
+func saveWerkspaces(ws map[string]string) error {
+	p := werkspacesConfigPath()
 	if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
 		return err
 	}
@@ -41,15 +38,15 @@ func saveWorkspaces(ws map[string]string) error {
 	return os.WriteFile(p, data, 0644)
 }
 
-func newWorkspaceCmd() *cobra.Command {
+func newWerkspaceCmd() *cobra.Command {
 	wsCmd := &cobra.Command{
-		Use:   "workspace",
-		Short: "Manage named workspaces",
+		Use:   "werkspace",
+		Short: "Manage named werkspaces",
 	}
 
 	addCmd := &cobra.Command{
 		Use:   "add <name> [path]",
-		Short: "Register a workspace",
+		Short: "Register a werkspace",
 		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
@@ -77,10 +74,10 @@ func newWorkspaceCmd() *cobra.Command {
 				return nil
 			}
 
-			ws := loadWorkspaces()
+			ws := loadWerkspaces()
 			ws[name] = absPath
-			if err := saveWorkspaces(ws); err != nil {
-				outputError(fmt.Sprintf("failed to save workspaces: %v", err))
+			if err := saveWerkspaces(ws); err != nil {
+				outputError(fmt.Sprintf("failed to save werkspaces: %v", err))
 				return nil
 			}
 
@@ -91,9 +88,9 @@ func newWorkspaceCmd() *cobra.Command {
 
 	listCmd := &cobra.Command{
 		Use:   "list",
-		Short: "List registered workspaces",
+		Short: "List registered werkspaces",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ws := loadWorkspaces()
+			ws := loadWerkspaces()
 			if pretty {
 				var rows [][]string
 				for name, path := range ws {
@@ -109,18 +106,18 @@ func newWorkspaceCmd() *cobra.Command {
 
 	removeCmd := &cobra.Command{
 		Use:   "remove <name>",
-		Short: "Remove a registered workspace",
+		Short: "Remove a registered werkspace",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ws := loadWorkspaces()
+			ws := loadWerkspaces()
 			if _, ok := ws[name]; !ok {
-				outputError(fmt.Sprintf("workspace not found: %s", name))
+				outputError(fmt.Sprintf("werkspace not found: %s", name))
 				return nil
 			}
 			delete(ws, name)
-			if err := saveWorkspaces(ws); err != nil {
-				outputError(fmt.Sprintf("failed to save workspaces: %v", err))
+			if err := saveWerkspaces(ws); err != nil {
+				outputError(fmt.Sprintf("failed to save werkspaces: %v", err))
 				return nil
 			}
 			outputJSON(map[string]string{"status": "removed", "name": name})

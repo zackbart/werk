@@ -84,12 +84,7 @@ func newTaskCmd() *cobra.Command {
 				}
 				tasks = filtered
 			}
-			out := toTaskJSONList(tasks)
-			if out == nil {
-				outputJSON([]interface{}{})
-			} else {
-				outputJSON(out)
-			}
+			outputJSON(toTaskJSONList(tasks))
 			return nil
 		},
 	}
@@ -216,12 +211,7 @@ func newTaskCmd() *cobra.Command {
 				outputError(err.Error())
 				return nil
 			}
-			out := toTaskJSONList(tasks)
-			if out == nil {
-				outputJSON([]interface{}{})
-			} else {
-				outputJSON(out)
-			}
+			outputJSON(toTaskJSONList(tasks))
 			return nil
 		},
 	}
@@ -257,12 +247,7 @@ func newTaskCmd() *cobra.Command {
 				outputError(err.Error())
 				return nil
 			}
-			out := toTaskJSONList(tasks)
-			if out == nil {
-				outputJSON([]interface{}{})
-			} else {
-				outputJSON(out)
-			}
+			outputJSON(toTaskJSONList(tasks))
 			return nil
 		},
 	}

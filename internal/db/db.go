@@ -724,48 +724,38 @@ func (d *DB) ReadyTasks() ([]models.Task, error) {
 
 // --- Archive ---
 
-func (d *DB) ArchiveTask(id, changedBy string) (*models.Task, error) {
+func (d *DB) setArchived(id string, archived bool, changedBy string) (*models.Task, error) {
 	existing, err := d.GetTask(id)
 	if err != nil {
 		return nil, err
 	}
-	if existing.Archived {
+	if existing.Archived == archived {
 		return existing, nil
 	}
 
+	val := 0
+	if archived {
+		val = 1
+	}
 	now := time.Now().UTC().Format(time.RFC3339)
-	_, err = d.conn.Exec(`UPDATE tasks SET archived = 1, updated_at = ? WHERE id = ?`, now, id)
+	_, err = d.conn.Exec(`UPDATE tasks SET archived = ?, updated_at = ? WHERE id = ?`, val, now, id)
 	if err != nil {
 		return nil, err
 	}
 
-	oldVal := "0"
-	newVal := "1"
+	oldVal := fmt.Sprintf("%d", 1-val)
+	newVal := fmt.Sprintf("%d", val)
 	d.WriteAudit(id, "archived", &oldVal, &newVal, changedBy)
 	d.touchSession(id)
 	return d.GetTask(id)
 }
 
+func (d *DB) ArchiveTask(id, changedBy string) (*models.Task, error) {
+	return d.setArchived(id, true, changedBy)
+}
+
 func (d *DB) UnarchiveTask(id, changedBy string) (*models.Task, error) {
-	existing, err := d.GetTask(id)
-	if err != nil {
-		return nil, err
-	}
-	if !existing.Archived {
-		return existing, nil
-	}
-
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err = d.conn.Exec(`UPDATE tasks SET archived = 0, updated_at = ? WHERE id = ?`, now, id)
-	if err != nil {
-		return nil, err
-	}
-
-	oldVal := "1"
-	newVal := "0"
-	d.WriteAudit(id, "archived", &oldVal, &newVal, changedBy)
-	d.touchSession(id)
-	return d.GetTask(id)
+	return d.setArchived(id, false, changedBy)
 }
 
 func (d *DB) SearchTasks(query string) ([]models.Task, error) {
@@ -1200,17 +1190,22 @@ func (d *DB) BuildCompactHandoff(idOrRef string) (*models.CompactHandoff, error)
 
 func (d *DB) GetStatus() (*models.StatusSummary, error) {
 	s := &models.StatusSummary{}
-	d.conn.QueryRow(`SELECT COUNT(*) FROM tasks WHERE status = 'open'`).Scan(&s.Open)
-	d.conn.QueryRow(`SELECT COUNT(*) FROM tasks WHERE status = 'in_progress'`).Scan(&s.InProgress)
-	d.conn.QueryRow(`SELECT COUNT(*) FROM tasks WHERE status = 'blocked'`).Scan(&s.Blocked)
-	d.conn.QueryRow(`SELECT COUNT(*) FROM tasks WHERE status = 'done'`).Scan(&s.Done)
-	d.conn.QueryRow(`SELECT COUNT(*) FROM decisions`).Scan(&s.Decisions)
-	d.conn.QueryRow(`SELECT COUNT(*) FROM sessions`).Scan(&s.Sessions)
-	// Active session: most recent session with no ended_at
 	var activeID sql.NullString
-	d.conn.QueryRow(`SELECT id FROM sessions WHERE ended_at IS NULL ORDER BY started_at DESC LIMIT 1`).Scan(&activeID)
+	err := d.conn.QueryRow(`
+		SELECT
+			(SELECT COUNT(*) FROM tasks WHERE status = 'open'),
+			(SELECT COUNT(*) FROM tasks WHERE status = 'in_progress'),
+			(SELECT COUNT(*) FROM tasks WHERE status = 'blocked'),
+			(SELECT COUNT(*) FROM tasks WHERE status = 'done'),
+			(SELECT COUNT(*) FROM decisions),
+			(SELECT COUNT(*) FROM sessions),
+			(SELECT id FROM sessions WHERE ended_at IS NULL ORDER BY started_at DESC LIMIT 1)
+	`).Scan(&s.Open, &s.InProgress, &s.Blocked, &s.Done, &s.Decisions, &s.Sessions, &activeID)
 	if activeID.Valid {
 		s.ActiveSessionID = &activeID.String
+	}
+	if err != nil {
+		return nil, err
 	}
 	return s, nil
 }

@@ -87,11 +87,7 @@ func Start(db *sql.DB, port int) error {
 			s["tasks_touched"] = tasksTouched
 			sessions = append(sessions, s)
 		}
-		if sessions == nil {
-			writeJSON(w, []interface{}{})
-		} else {
-			writeJSON(w, sessions)
-		}
+		writeJSON(w, emptyIfNil(sessions))
 	})
 
 	mux.HandleFunc("/api/subtasks", func(w http.ResponseWriter, r *http.Request) {
@@ -128,11 +124,7 @@ func Start(db *sql.DB, port int) error {
 			}
 			decs = append(decs, d)
 		}
-		if decs == nil {
-			writeJSON(w, []interface{}{})
-		} else {
-			writeJSON(w, decs)
-		}
+		writeJSON(w, emptyIfNil(decs))
 	})
 
 	mux.HandleFunc("/api/audit/", func(w http.ResponseWriter, r *http.Request) {
@@ -170,11 +162,7 @@ func Start(db *sql.DB, port int) error {
 			}
 			entries = append(entries, e)
 		}
-		if entries == nil {
-			writeJSON(w, []interface{}{})
-		} else {
-			writeJSON(w, entries)
-		}
+		writeJSON(w, emptyIfNil(entries))
 	})
 
 	mux.HandleFunc("/api/dependencies", func(w http.ResponseWriter, r *http.Request) {
@@ -190,11 +178,7 @@ func Start(db *sql.DB, port int) error {
 			rows.Scan(&up, &down)
 			deps = append(deps, map[string]string{"upstream_id": up, "downstream_id": down})
 		}
-		if deps == nil {
-			writeJSON(w, []interface{}{})
-		} else {
-			writeJSON(w, deps)
-		}
+		writeJSON(w, emptyIfNil(deps))
 	})
 
 	// Serve web UI
@@ -220,6 +204,13 @@ func Start(db *sql.DB, port int) error {
 func writeJSON(w http.ResponseWriter, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(v)
+}
+
+func emptyIfNil[T any](s []T) interface{} {
+	if s == nil {
+		return []interface{}{}
+	}
+	return s
 }
 
 // resolveTaskIDFromDB resolves an id-or-ref to an internal ID using the DB directly.

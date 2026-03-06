@@ -9,7 +9,7 @@ compatibility: Requires the werk binary in PATH. Run werk init to set up.
 allowed-tools: Bash(werk:*)
 metadata:
   author: werk
-  version: "0.2.2"
+  version: "0.2.3"
 ---
 
 # Task Tracking
@@ -38,7 +38,9 @@ This creates `.werk/tasks.db`. All commands automatically walk up the directory 
 
 If `.werk/snapshot.json` exists at init time, it is automatically imported — restoring task history from a committed snapshot.
 
-Running `werk init` on an existing project is safe — it upgrades the database schema, fixes `.gitignore` patterns, and registers the workspace. Returns `{"status": "upgraded"}`.
+Running `werk init` on an existing project is safe — it upgrades the database schema, fixes `.gitignore` patterns, and registers the werkspace. Returns `{"status": "upgraded"}`.
+
+Use `--name <name>` to override the werkspace name (default: directory basename).
 
 **Post-init checks:**
 
@@ -307,14 +309,14 @@ werk epic unarchive 1 --agent
 
 ---
 
-## Workspaces
+## Werkspaces
 
-Register named workspaces to target `.werk/` databases beyond the nearest one:
+Register named werkspaces to target `.werk/` databases beyond the nearest one:
 
 ```
-werk workspace add myproject /path/to/project
-werk workspace list
-werk workspace remove myproject
+werk werkspace add myproject /path/to/project
+werk werkspace list
+werk werkspace remove myproject
 ```
 
 Then use `--ws <name>` on any command:
@@ -323,6 +325,8 @@ Then use `--ws <name>` on any command:
 werk --ws myproject status
 werk --ws myproject task list
 ```
+
+Werkspaces are stored at `~/.config/werk/werkspaces.json`. `werk init` auto-registers the current directory using its basename as the werkspace name.
 
 ---
 

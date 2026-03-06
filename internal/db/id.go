@@ -18,19 +18,17 @@ func (d *DB) GenerateID(prefix, title string) (string, error) {
 		id := fmt.Sprintf("%s%s", prefix, hex[:6])
 
 		var exists int
-		err := d.conn.QueryRow("SELECT COUNT(*) FROM tasks WHERE id = ?", id).Scan(&exists)
-		if err != nil {
-			return "", err
+		for _, table := range []string{"tasks", "decisions", "sessions"} {
+			err := d.conn.QueryRow("SELECT COUNT(*) FROM "+table+" WHERE id = ?", id).Scan(&exists)
+			if err != nil {
+				return "", err
+			}
+			if exists > 0 {
+				break
+			}
 		}
 		if exists == 0 {
-			// Also check decisions and sessions
-			_ = d.conn.QueryRow("SELECT COUNT(*) FROM decisions WHERE id = ?", id).Scan(&exists)
-			if exists == 0 {
-				_ = d.conn.QueryRow("SELECT COUNT(*) FROM sessions WHERE id = ?", id).Scan(&exists)
-				if exists == 0 {
-					return id, nil
-				}
-			}
+			return id, nil
 		}
 	}
 	return "", fmt.Errorf("failed to generate unique ID after 5 attempts")
