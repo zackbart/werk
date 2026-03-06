@@ -42,9 +42,25 @@ Running `werk init` on an existing project is safe — it upgrades the database 
 
 Use `--name <name>` to override the werkspace name (default: directory basename).
 
-**Post-init checks:**
+**Gitignore setup:**
 
-1. Check if any ancestor `.gitignore` has a `*.db` rule (common in Dolt/beads, Rails, and other projects). If so, add `!.werk/tasks.db` to the root `.gitignore` so the database is tracked by git.
+`werk init` auto-creates `.werk/.gitignore` with WAL/SHM/lock/pid exclusions. The `.werk/` directory itself — including `tasks.db` and `snapshot.json` — should be committed. Your root `.gitignore` should **not** ignore `.werk/`.
+
+If your project has a `*.db` rule in any ancestor `.gitignore` (common in Rails, Dolt, etc.), add an exception so the database is tracked:
+
+```
+# .gitignore (root)
+!.werk/tasks.db
+```
+
+The `.werk/.gitignore` created by init contains:
+
+```
+*.db-wal
+*.db-shm
+session.lock
+serve.pid
+```
 
 ---
 
