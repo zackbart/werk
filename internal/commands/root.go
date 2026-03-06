@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -38,8 +39,37 @@ func outputJSON(v interface{}) {
 }
 
 func outputError(msg string) {
-	outputJSON(map[string]string{"error": msg})
+	outputErrorCode(errorCodeFromMessage(msg), msg, nil)
+}
+
+func outputErrorCode(code, message string, details interface{}) {
+	payload := map[string]interface{}{
+		"code":    code,
+		"message": message,
+	}
+	if details != nil {
+		payload["details"] = details
+	}
+	outputJSON(payload)
 	os.Exit(1)
+}
+
+func errorCodeFromMessage(message string) string {
+	m := strings.ToLower(message)
+	switch {
+	case strings.Contains(m, "not found"), strings.Contains(m, "no active session"):
+		return "ERR_NOT_FOUND"
+	case strings.Contains(m, "already"), strings.Contains(m, "cannot"), strings.Contains(m, "cycle"), strings.Contains(m, "exists"):
+		return "ERR_CONFLICT"
+	case strings.Contains(m, "required"), strings.Contains(m, "invalid"), strings.Contains(m, "must"):
+		return "ERR_INVALID_INPUT"
+	case strings.Contains(m, "database"), strings.Contains(m, "failed to open"), strings.Contains(m, "failed to initialize"):
+		return "ERR_DB"
+	case strings.Contains(m, "lock"):
+		return "ERR_SESSION_LOCK"
+	default:
+		return "ERR_INTERNAL"
+	}
 }
 
 func prettyTable(headers []string, rows [][]string) {
@@ -134,6 +164,7 @@ func NewRootCmd() *cobra.Command {
 		newDecisionCmd(),
 		newSessionCmd(),
 		newAuditCmd(),
+		newHandoffCmd(),
 		newLogCmd(),
 		newServeCmd(),
 	)

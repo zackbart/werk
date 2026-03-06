@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -61,9 +62,14 @@ func (d *DB) CreateTask(taskType, title string, parentID *string, priority int, 
 		return nil, err
 	}
 
+	ref, err := d.nextTaskRef(taskType, parentID)
+	if err != nil {
+		return nil, err
+	}
+
 	_, err = d.conn.Exec(
-		`INSERT INTO tasks (id, parent_id, type, title, priority, notes) VALUES (?, ?, ?, ?, ?, ?)`,
-		id, parentID, taskType, title, priority, notes,
+		`INSERT INTO tasks (id, ref, parent_id, type, title, priority, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		id, ref, parentID, taskType, title, priority, notes,
 	)
 	if err != nil {
 		return nil, err
@@ -82,6 +88,7 @@ func (d *DB) CreateTask(taskType, title string, parentID *string, priority int, 
 	if parentID != nil {
 		d.WriteAudit(id, "parent_id", nil, parentID, changedBy)
 	}
+	d.WriteAudit(id, "ref", nil, &ref, changedBy)
 
 	d.touchSession(id)
 
@@ -122,15 +129,18 @@ func (d *DB) validateHierarchy(taskType string, parentID *string) error {
 
 func (d *DB) GetTask(id string) (*models.Task, error) {
 	t := &models.Task{}
-	var createdAt, updatedAt, closedAt sql.NullString
+	var ref, createdAt, updatedAt, closedAt sql.NullString
 	err := d.conn.QueryRow(
-		`SELECT id, parent_id, type, title, status, priority, notes, created_at, updated_at, closed_at FROM tasks WHERE id = ?`, id,
-	).Scan(&t.ID, &t.ParentID, &t.Type, &t.Title, &t.Status, &t.Priority, &t.Notes, &createdAt, &updatedAt, &closedAt)
+		`SELECT id, ref, parent_id, type, title, status, priority, notes, created_at, updated_at, closed_at FROM tasks WHERE id = ?`, id,
+	).Scan(&t.ID, &ref, &t.ParentID, &t.Type, &t.Title, &t.Status, &t.Priority, &t.Notes, &createdAt, &updatedAt, &closedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("task not found: %s", id)
 		}
 		return nil, err
+	}
+	if ref.Valid {
+		t.Ref = ref.String
 	}
 
 	t.CreatedAt = parseTime(createdAt.String)
@@ -141,6 +151,12 @@ func (d *DB) GetTask(id string) (*models.Task, error) {
 	if closedAt.Valid {
 		ct := parseTime(closedAt.String)
 		t.ClosedAt = &ct
+	}
+	if t.ParentID != nil {
+		var parentRef sql.NullString
+		if err := d.conn.QueryRow(`SELECT ref FROM tasks WHERE id = ?`, *t.ParentID).Scan(&parentRef); err == nil && parentRef.Valid {
+			t.ParentRef = &parentRef.String
+		}
 	}
 
 	// Load blockers
@@ -161,6 +177,45 @@ func (d *DB) GetTask(id string) (*models.Task, error) {
 	}
 
 	return t, nil
+}
+
+func (d *DB) GetTaskByRef(ref string) (*models.Task, error) {
+	var id string
+	err := d.conn.QueryRow(`SELECT id FROM tasks WHERE ref = ?`, ref).Scan(&id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("task not found: %s", ref)
+		}
+		return nil, err
+	}
+	return d.GetTask(id)
+}
+
+func (d *DB) ResolveTaskID(idOrRef string) (string, error) {
+	if _, err := d.GetTask(idOrRef); err == nil {
+		return idOrRef, nil
+	}
+	t, err := d.GetTaskByRef(idOrRef)
+	if err != nil {
+		return "", err
+	}
+	return t.ID, nil
+}
+
+func (d *DB) ResolveTaskRef(idOrRef string) (string, error) {
+	t, err := d.GetTaskByIDOrRef(idOrRef)
+	if err != nil {
+		return "", err
+	}
+	return t.Ref, nil
+}
+
+func (d *DB) GetTaskByIDOrRef(idOrRef string) (*models.Task, error) {
+	id, err := d.ResolveTaskID(idOrRef)
+	if err != nil {
+		return nil, err
+	}
+	return d.GetTask(id)
 }
 
 func (d *DB) ListTasks(taskType string, parentID *string, status string) ([]models.Task, error) {
@@ -473,6 +528,28 @@ func (d *DB) GetDependencies(id string) (*models.DepInfo, error) {
 	return info, nil
 }
 
+func (d *DB) ListChildren(parentID string) ([]models.Task, error) {
+	rows, err := d.conn.Query(`SELECT id FROM tasks WHERE parent_id = ? ORDER BY created_at ASC, id ASC`, parentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var children []models.Task
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		child, err := d.GetTask(id)
+		if err != nil {
+			continue
+		}
+		children = append(children, *child)
+	}
+	return children, nil
+}
+
 // --- Decisions ---
 
 func (d *DB) CreateDecision(summary string, rationale *string, createdBy string) (*models.Decision, error) {
@@ -661,6 +738,84 @@ func (d *DB) GetAudit(taskID string) ([]models.AuditEntry, error) {
 		entries = append(entries, e)
 	}
 	return entries, nil
+}
+
+func (d *DB) BuildCompactHandoff(idOrRef string) (*models.CompactHandoff, error) {
+	task, err := d.GetTaskByIDOrRef(idOrRef)
+	if err != nil {
+		return nil, err
+	}
+
+	depInfo, err := d.GetDependencies(task.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	children, err := d.ListChildren(task.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	decisions, err := d.ListDecisions()
+	if err != nil {
+		return nil, err
+	}
+	if len(decisions) > 5 {
+		decisions = decisions[len(decisions)-5:]
+	}
+
+	audit, err := d.GetAudit(task.ID)
+	if err != nil {
+		return nil, err
+	}
+	if len(audit) > 10 {
+		audit = audit[len(audit)-10:]
+	}
+
+	packet := &models.CompactHandoff{
+		Item:         task.ToJSON(),
+		Dependencies: models.HandoffDependencies{BlockedBy: []models.HandoffRelation{}, Blocks: []models.HandoffRelation{}},
+		Children:     []models.TaskJSON{},
+		Decisions:    decisions,
+		RecentAudit:  audit,
+	}
+
+	for _, blockedByID := range depInfo.BlockedBy {
+		t, err := d.GetTask(blockedByID)
+		if err != nil {
+			continue
+		}
+		packet.Dependencies.BlockedBy = append(packet.Dependencies.BlockedBy, models.HandoffRelation{
+			ID:     t.ID,
+			Ref:    t.Ref,
+			Type:   t.Type,
+			Title:  t.Title,
+			Status: t.Status,
+		})
+	}
+	for _, blocksID := range depInfo.Blocks {
+		t, err := d.GetTask(blocksID)
+		if err != nil {
+			continue
+		}
+		packet.Dependencies.Blocks = append(packet.Dependencies.Blocks, models.HandoffRelation{
+			ID:     t.ID,
+			Ref:    t.Ref,
+			Type:   t.Type,
+			Title:  t.Title,
+			Status: t.Status,
+		})
+	}
+	sort.Slice(packet.Dependencies.BlockedBy, func(i, j int) bool {
+		return packet.Dependencies.BlockedBy[i].Ref < packet.Dependencies.BlockedBy[j].Ref
+	})
+	sort.Slice(packet.Dependencies.Blocks, func(i, j int) bool { return packet.Dependencies.Blocks[i].Ref < packet.Dependencies.Blocks[j].Ref })
+
+	for _, child := range children {
+		packet.Children = append(packet.Children, child.ToJSON())
+	}
+
+	return packet, nil
 }
 
 // --- Status ---

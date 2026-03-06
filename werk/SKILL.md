@@ -16,6 +16,12 @@ metadata:
 
 Use the `werk` CLI for all task and decision tracking. DB lives at `.werk/tasks.db`. Always pass `--agent` on all write commands.
 
+Task-like items now expose both:
+- `id` (internal hash primary key like `tk-a1b2c3`)
+- `ref` (stable dotted ref like `1.2` or `1.2.1`)
+
+Use refs by default in prompts/commands. Any command that accepts a task-like ID also accepts `<id-or-ref>`.
+
 See [CLI Reference](references/CLI.md) for the full command list and output format.
 
 ## Setup
@@ -63,11 +69,11 @@ The summary should orient the next agent quickly — what was done, what was fil
 ## Core workflow
 
 1. `werk task ready --agent` — find work with no open blockers
-2. `werk task start <id> --agent` — claim it
-3. `werk subtask list --task <id> --agent` — check for subtasks
+2. `werk task start <id-or-ref> --agent` — claim it
+3. `werk subtask list --task <id-or-ref> --agent` — check for subtasks
 4. Do the work. File subtasks for steps discovered along the way.
-5. `werk subtask close <id> --agent` — close each subtask as you finish it
-6. `werk task close <id> --agent` — close the task (all subtasks must be done first)
+5. `werk subtask close <id-or-ref> --agent` — close each subtask as you finish it
+6. `werk task close <id-or-ref> --agent` — close the task (all subtasks must be done first)
 7. `werk task ready --agent` — check for newly unblocked work and repeat
 
 ---
@@ -131,7 +137,7 @@ A task is a **concrete, completable unit of work within an epic**. It answers "w
 
 ```
 werk task create "Implement hash ID generation" \
-  --epic ep-a1b2c3 \
+  --epic 1 \
   --priority 1 \
   --notes "Use sha256(title+timestamp)[:6] with prefix. Retry up to 5 times on collision. See spec.md ID Scheme section." \
   --agent
@@ -161,7 +167,7 @@ A subtask is a **discrete step within a task**. It tracks individual progress wi
 
 ```
 werk subtask create "Write schema migration SQL for users table" \
-  --task tk-d4e5f6 \
+  --task 1.1 \
   --agent
 ```
 
@@ -207,12 +213,12 @@ werk decision create "Use pure-Go SQLite driver instead of CGO" \
 Dependencies model "blocks" relationships. The upstream task must be done before the downstream task can start.
 
 ```
-werk dep add tk-implement tk-tests --agent    # tk-implement blocks tk-tests
-werk dep remove tk-implement tk-tests --agent
-werk dep list tk-tests --agent                # shows what blocks it and what it blocks
+werk dep add 1.1 1.2 --agent
+werk dep remove 1.1 1.2 --agent
+werk dep list 1.2 --agent                     # shows what blocks it and what it blocks
 ```
 
-Before starting a task, check its blockers: `werk dep list <id> --agent`. Never work on a task with open blockers.
+Before starting a task, check its blockers: `werk dep list <id-or-ref> --agent`. Never work on a task with open blockers.
 
 Dependencies can cross epic boundaries. Cycles are rejected automatically.
 
@@ -225,10 +231,34 @@ Dependencies can cross epic boundaries. Cycles are rejected automatically.
 - Closing sets `status=done` and records `closed_at` — this is permanent
 - **Deleting** permanently removes a row and its audit history. Use for duplicates and mistakes only — not for completed work:
   ```
-  werk task delete <id> --agent             # only works on open items
-  werk task delete <id> --force --agent     # works on any status
+  werk task delete <id-or-ref> --agent             # only works on open items
+  werk task delete <id-or-ref> --force --agent     # works on any status
   ```
 - Children must be deleted before parents (subtasks → task → epic)
+
+---
+
+## Handoff
+
+Use compact handoff packets to transfer context between agents:
+
+```
+werk handoff <id-or-ref> --compact
+```
+
+The packet includes item identity/core metadata, dependencies + blockers, child items, recent decisions, and recent audit context.
+
+---
+
+## Error handling
+
+On failures, parse JSON with stable machine codes:
+
+```
+{"code":"ERR_NOT_FOUND","message":"..."}
+```
+
+Do not parse free-form message strings for control flow; branch on `code`.
 
 ---
 
@@ -266,8 +296,9 @@ werk log --pretty --verbose -n 10    Detailed recent activity
 werk task ready                      What can I work on right now?
 werk task list --status in_progress  What is currently in flight?
 werk epic list                       What features exist?
-werk dep list <id>                   What blocks this / what does this block?
-werk audit <id>                      Full history of a single task
+werk dep list <id-or-ref>            What blocks this / what does this block?
+werk audit <id-or-ref>               Full history of a single task
+werk handoff <id-or-ref> --compact   Context packet for agent handoff
 werk status                          Project summary
 werk decision list                   Architectural decision log
 ```

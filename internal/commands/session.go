@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"werk/internal/db"
 )
 
 func werkDir() string {
@@ -114,6 +116,66 @@ func newSessionCmd() *cobra.Command {
 		},
 	}
 
-	sessionCmd.AddCommand(startCmd, endCmd, listCmd, showCmd)
+	recoverCmd := &cobra.Command{
+		Use:   "recover",
+		Short: "Recover from stale or invalid session lock state",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			result, err := recoverSessionLock(database, lockfilePath())
+			if err != nil {
+				outputError(err.Error())
+				return nil
+			}
+			outputJSON(result)
+			return nil
+		},
+	}
+
+	sessionCmd.AddCommand(startCmd, endCmd, listCmd, showCmd, recoverCmd)
 	return sessionCmd
+}
+
+func recoverSessionLock(d *db.DB, lockPath string) (map[string]interface{}, error) {
+	data, err := os.ReadFile(lockPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return map[string]interface{}{"status": "no_lock"}, nil
+		}
+		return nil, fmt.Errorf("failed to read lockfile: %w", err)
+	}
+
+	sessionID := strings.TrimSpace(string(data))
+	if sessionID == "" {
+		if err := os.Remove(lockPath); err != nil && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to remove invalid lockfile: %w", err)
+		}
+		return map[string]interface{}{"status": "recovered", "reason": "invalid_lockfile"}, nil
+	}
+
+	s, err := d.GetSession(sessionID)
+	if err != nil {
+		if err := os.Remove(lockPath); err != nil && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to remove stale lockfile: %w", err)
+		}
+		return map[string]interface{}{
+			"status":     "recovered",
+			"reason":     "session_not_found",
+			"session_id": sessionID,
+		}, nil
+	}
+
+	if s.EndedAt != nil {
+		if err := os.Remove(lockPath); err != nil && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to remove stale lockfile: %w", err)
+		}
+		return map[string]interface{}{
+			"status":     "recovered",
+			"reason":     "session_already_ended",
+			"session_id": sessionID,
+		}, nil
+	}
+
+	return map[string]interface{}{
+		"status":     "active_session",
+		"session_id": sessionID,
+	}, nil
 }

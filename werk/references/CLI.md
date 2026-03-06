@@ -32,44 +32,44 @@ werk serve down                                    Stop web UI
 ```
 werk epic create "<title>" [--priority 0-4] [--notes "<text>"] --agent
 werk epic list [--status open|in_progress|done|all]
-werk epic show <id>
-werk epic update <id> [--title ""] [--priority 0-4] [--notes ""] --agent
-werk epic close <id> --agent
-werk epic delete <id> [--force] --agent            Permanently remove
+werk epic show <id-or-ref>
+werk epic update <id-or-ref> [--title ""] [--priority 0-4] [--notes ""] --agent
+werk epic close <id-or-ref> --agent
+werk epic delete <id-or-ref> [--force] --agent            Permanently remove
 ```
 
 ## Tasks
 
 ```
-werk task create "<title>" --epic <id> [--priority 0-4] [--notes "<text>"] --agent
-werk task list [--epic <id>] [--status open|in_progress|done|blocked|all]
-werk task show <id>
-werk task update <id> [--title ""] [--priority 0-4] [--notes ""] --agent
-werk task start <id> --agent                       Set to in_progress
-werk task block <id> --agent                       Set to blocked
-werk task close <id> --agent                       Set to done
-werk task delete <id> [--force] --agent            Permanently remove
+werk task create "<title>" --epic <id-or-ref> [--priority 0-4] [--notes "<text>"] --agent
+werk task list [--epic <id-or-ref>] [--status open|in_progress|done|blocked|all]
+werk task show <id-or-ref>
+werk task update <id-or-ref> [--title ""] [--priority 0-4] [--notes ""] --agent
+werk task start <id-or-ref> --agent                       Set to in_progress
+werk task block <id-or-ref> --agent                       Set to blocked
+werk task close <id-or-ref> --agent                       Set to done
+werk task delete <id-or-ref> [--force] --agent            Permanently remove
 werk task ready                                    List unblocked tasks
 ```
 
 ## Subtasks
 
 ```
-werk subtask create "<title>" --task <id> [--notes "<text>"] --agent
-werk subtask list --task <id>
-werk subtask show <id>
-werk subtask update <id> [--title ""] [--notes ""] --agent
-werk subtask start <id> --agent
-werk subtask close <id> --agent
-werk subtask delete <id> [--force] --agent         Permanently remove
+werk subtask create "<title>" --task <id-or-ref> [--notes "<text>"] --agent
+werk subtask list --task <id-or-ref>
+werk subtask show <id-or-ref>
+werk subtask update <id-or-ref> [--title ""] [--notes ""] --agent
+werk subtask start <id-or-ref> --agent
+werk subtask close <id-or-ref> --agent
+werk subtask delete <id-or-ref> [--force] --agent         Permanently remove
 ```
 
 ## Dependencies
 
 ```
-werk dep add <upstream> <downstream> --agent       Upstream blocks downstream
-werk dep remove <upstream> <downstream> --agent
-werk dep list <id>                                 Blockers + what this blocks
+werk dep add <upstream-id-or-ref> <downstream-id-or-ref> --agent
+werk dep remove <upstream-id-or-ref> <downstream-id-or-ref> --agent
+werk dep list <id-or-ref>                          Blockers + what this blocks
 ```
 
 ## Decisions
@@ -87,12 +87,14 @@ werk session start --agent
 werk session end [--summary "<text>"] --agent
 werk session list
 werk session show <id>
+werk session recover
 ```
 
 ## Audit
 
 ```
-werk audit <task-id>                               Full change history
+werk audit <task-id-or-ref>                        Full change history
+werk handoff <id-or-ref> --compact                 Compact handoff packet
 ```
 
 ## Log
@@ -115,11 +117,13 @@ Example task object:
 ```json
 {
   "id": "tk-a1b2c3",
+  "ref": "1.1",
+  "parent_id": "ep-d4e5f6",
+  "parent_ref": "1",
   "type": "task",
   "title": "Implement hash ID generation",
   "status": "open",
   "priority": 1,
-  "epic_id": "ep-d4e5f6",
   "blockers": [],
   "notes": "Use sha256(title+timestamp)[:6], retry on collision",
   "created_at": "2026-03-04T10:00:00Z",
@@ -128,4 +132,4 @@ Example task object:
 }
 ```
 
-Errors always return `{"error": "<message>"}` with a non-zero exit code.
+Errors always return `{"code":"ERR_*","message":"<message>"}` with a non-zero exit code.

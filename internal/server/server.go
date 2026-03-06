@@ -42,7 +42,7 @@ func Start(db *sql.DB, port int) error {
 	mux.HandleFunc("/api/tasks", func(w http.ResponseWriter, r *http.Request) {
 		status := r.URL.Query().Get("status")
 		epicID := r.URL.Query().Get("epic")
-		query := "SELECT id, parent_id, type, title, status, priority, notes, created_at, updated_at, closed_at FROM tasks WHERE type = 'task'"
+		query := "SELECT id, ref, parent_id, (SELECT ref FROM tasks p WHERE p.id = t.parent_id), type, title, status, priority, notes, created_at, updated_at, closed_at FROM tasks t WHERE type = 'task'"
 		args := []interface{}{}
 		if epicID != "" {
 			query += " AND parent_id = ?"
@@ -62,7 +62,7 @@ func Start(db *sql.DB, port int) error {
 			writeJSON(w, queryTasks(db, "subtask", ""))
 			return
 		}
-		query := "SELECT id, parent_id, type, title, status, priority, notes, created_at, updated_at, closed_at FROM tasks WHERE type = 'subtask' AND parent_id = ? ORDER BY created_at ASC"
+		query := "SELECT id, ref, parent_id, (SELECT ref FROM tasks p WHERE p.id = t.parent_id), type, title, status, priority, notes, created_at, updated_at, closed_at FROM tasks t WHERE type = 'subtask' AND parent_id = ? ORDER BY created_at ASC"
 		writeJSON(w, queryTasksRaw(db, query, taskID))
 	})
 
@@ -184,7 +184,7 @@ func writeJSON(w http.ResponseWriter, v interface{}) {
 }
 
 func queryTasks(db *sql.DB, taskType, status string) []map[string]interface{} {
-	query := "SELECT id, parent_id, type, title, status, priority, notes, created_at, updated_at, closed_at FROM tasks WHERE type = ?"
+	query := "SELECT id, ref, parent_id, (SELECT ref FROM tasks p WHERE p.id = t.parent_id), type, title, status, priority, notes, created_at, updated_at, closed_at FROM tasks t WHERE type = ?"
 	args := []interface{}{taskType}
 	if status != "" && status != "all" {
 		query += " AND status = ?"
@@ -203,28 +203,32 @@ func queryTasksRaw(db *sql.DB, query string, args ...interface{}) []map[string]i
 
 	var tasks []map[string]interface{}
 	for rows.Next() {
-		var id, tType, title, status string
-		var parentID, notes sql.NullString
+		var id, ref, tType, title, status string
+		var parentID, parentRef, notes sql.NullString
 		var priority int
 		var createdAt string
 		var updatedAt, closedAt sql.NullString
-		rows.Scan(&id, &parentID, &tType, &title, &status, &priority, &notes, &createdAt, &updatedAt, &closedAt)
+		rows.Scan(&id, &ref, &parentID, &parentRef, &tType, &title, &status, &priority, &notes, &createdAt, &updatedAt, &closedAt)
 
 		t := map[string]interface{}{
 			"id":         id,
+			"ref":        ref,
+			"parent_id":  nil,
+			"parent_ref": nil,
 			"type":       tType,
 			"title":      title,
 			"status":     status,
 			"priority":   priority,
 			"created_at": createdAt,
+			"notes":      nil,
+			"updated_at": nil,
+			"closed_at":  nil,
 		}
 		if parentID.Valid {
-			switch tType {
-			case "task":
-				t["epic_id"] = parentID.String
-			case "subtask":
-				t["task_id"] = parentID.String
-			}
+			t["parent_id"] = parentID.String
+		}
+		if parentRef.Valid {
+			t["parent_ref"] = parentRef.String
 		}
 		if notes.Valid {
 			t["notes"] = notes.String
