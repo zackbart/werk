@@ -60,10 +60,14 @@ func (d *DB) CreateTask(taskType, title string, parentID *string, priority int, 
 	if err != nil {
 		return nil, err
 	}
+	ref, err := d.nextRef(taskType, parentID)
+	if err != nil {
+		return nil, err
+	}
 
 	_, err = d.conn.Exec(
-		`INSERT INTO tasks (id, parent_id, type, title, priority, notes) VALUES (?, ?, ?, ?, ?, ?)`,
-		id, parentID, taskType, title, priority, notes,
+		`INSERT INTO tasks (id, ref, parent_id, type, title, priority, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		id, ref, parentID, taskType, title, priority, notes,
 	)
 	if err != nil {
 		return nil, err
@@ -82,6 +86,7 @@ func (d *DB) CreateTask(taskType, title string, parentID *string, priority int, 
 	if parentID != nil {
 		d.WriteAudit(id, "parent_id", nil, parentID, changedBy)
 	}
+	d.WriteAudit(id, "ref", nil, &ref, changedBy)
 
 	d.touchSession(id)
 
@@ -92,29 +97,29 @@ func (d *DB) validateHierarchy(taskType string, parentID *string) error {
 	switch taskType {
 	case "epic":
 		if parentID != nil {
-			return fmt.Errorf("epics cannot have a parent")
+			return codedError(ErrCodeInvalidParent, "epics cannot have a parent")
 		}
 	case "task":
 		if parentID == nil {
-			return fmt.Errorf("tasks must have an epic parent (use --epic)")
+			return codedError(ErrCodeInvalidParent, "tasks must have an epic parent (use --epic)")
 		}
 		parent, err := d.GetTask(*parentID)
 		if err != nil {
-			return fmt.Errorf("parent not found: %s", *parentID)
+			return codedError(ErrCodeInvalidParent, fmt.Sprintf("parent not found: %s", *parentID))
 		}
 		if parent.Type != "epic" {
-			return fmt.Errorf("task parent must be an epic, got %s", parent.Type)
+			return codedError(ErrCodeInvalidParent, fmt.Sprintf("task parent must be an epic, got %s", parent.Type))
 		}
 	case "subtask":
 		if parentID == nil {
-			return fmt.Errorf("subtasks must have a task parent (use --task)")
+			return codedError(ErrCodeInvalidParent, "subtasks must have a task parent (use --task)")
 		}
 		parent, err := d.GetTask(*parentID)
 		if err != nil {
-			return fmt.Errorf("parent not found: %s", *parentID)
+			return codedError(ErrCodeInvalidParent, fmt.Sprintf("parent not found: %s", *parentID))
 		}
 		if parent.Type != "task" {
-			return fmt.Errorf("subtask parent must be a task, got %s", parent.Type)
+			return codedError(ErrCodeInvalidParent, fmt.Sprintf("subtask parent must be a task, got %s", parent.Type))
 		}
 	}
 	return nil
@@ -124,11 +129,14 @@ func (d *DB) GetTask(id string) (*models.Task, error) {
 	t := &models.Task{}
 	var createdAt, updatedAt, closedAt sql.NullString
 	err := d.conn.QueryRow(
-		`SELECT id, parent_id, type, title, status, priority, notes, created_at, updated_at, closed_at FROM tasks WHERE id = ?`, id,
-	).Scan(&t.ID, &t.ParentID, &t.Type, &t.Title, &t.Status, &t.Priority, &t.Notes, &createdAt, &updatedAt, &closedAt)
+		`SELECT t.id, t.ref, t.parent_id, p.ref, t.type, t.title, t.status, t.priority, t.notes, t.created_at, t.updated_at, t.closed_at
+		 FROM tasks t
+		 LEFT JOIN tasks p ON p.id = t.parent_id
+		 WHERE t.id = ?`, id,
+	).Scan(&t.ID, &t.Ref, &t.ParentID, &t.ParentRef, &t.Type, &t.Title, &t.Status, &t.Priority, &t.Notes, &createdAt, &updatedAt, &closedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("task not found: %s", id)
+			return nil, codedError(ErrCodeNotFound, fmt.Sprintf("task not found: %s", id))
 		}
 		return nil, err
 	}
@@ -243,7 +251,7 @@ func (d *DB) SetTaskStatus(id, newStatus, changedBy string) (*models.Task, error
 	}
 
 	if existing.Status == "done" {
-		return nil, fmt.Errorf("cannot change status of a closed task")
+		return nil, codedError(ErrCodeInvalidState, "cannot change status of a closed task")
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -279,7 +287,7 @@ func (d *DB) validateClose(id, taskType string) error {
 		if taskType == "task" {
 			childType = "subtasks"
 		}
-		return fmt.Errorf("cannot close: %d %s are still open", openChildren, childType)
+		return codedError(ErrCodeTaskBlocked, fmt.Sprintf("cannot close: %d %s are still open", openChildren, childType))
 	}
 	return nil
 }
@@ -287,12 +295,12 @@ func (d *DB) validateClose(id, taskType string) error {
 func (d *DB) DeleteTask(id string, force bool, changedBy string) error {
 	existing, err := d.GetTask(id)
 	if err != nil {
-		return fmt.Errorf("task not found: %s", id)
+		return codedError(ErrCodeNotFound, fmt.Sprintf("task not found: %s", id))
 	}
 
 	// Without --force, only allow deleting open items
 	if !force && existing.Status != "open" {
-		return fmt.Errorf("cannot delete %s in status '%s' (use --force to override)", id, existing.Status)
+		return codedError(ErrCodeInvalidState, fmt.Sprintf("cannot delete %s in status '%s' (use --force to override)", id, existing.Status))
 	}
 
 	// Check for children regardless of force
@@ -308,7 +316,7 @@ func (d *DB) DeleteTask(id string, force bool, changedBy string) error {
 		if existing.Type == "task" {
 			childType = "subtasks"
 		}
-		return fmt.Errorf("cannot delete: %d %s still exist (delete children first)", childCount, childType)
+		return codedError(ErrCodeTaskBlocked, fmt.Sprintf("cannot delete: %d %s still exist (delete children first)", childCount, childType))
 	}
 
 	// Transaction: clean up all references then delete
@@ -373,7 +381,7 @@ func (d *DB) AddDependency(upstreamID, downstreamID string, changedBy string) er
 
 	// Cycle detection
 	if d.wouldCreateCycle(upstreamID, downstreamID) {
-		return fmt.Errorf("adding this dependency would create a cycle")
+		return codedError(ErrCodeCycleDetected, "adding this dependency would create a cycle")
 	}
 
 	_, err := d.conn.Exec(
@@ -382,7 +390,7 @@ func (d *DB) AddDependency(upstreamID, downstreamID string, changedBy string) er
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") || strings.Contains(err.Error(), "PRIMARY") {
-			return fmt.Errorf("dependency already exists")
+			return codedError(ErrCodeDuplicateDep, "dependency already exists")
 		}
 		return err
 	}
@@ -432,7 +440,7 @@ func (d *DB) RemoveDependency(upstreamID, downstreamID string, changedBy string)
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("dependency not found")
+		return codedError(ErrCodeNotFound, "dependency not found")
 	}
 	upStr := upstreamID
 	d.WriteAudit(downstreamID, "dependency_removed", &upStr, nil, changedBy)
@@ -500,7 +508,7 @@ func (d *DB) GetDecision(id string) (*models.Decision, error) {
 	).Scan(&dec.ID, &dec.Summary, &dec.Rationale, &createdAt, &dec.CreatedBy)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("decision not found: %s", id)
+			return nil, codedError(ErrCodeNotFound, fmt.Sprintf("decision not found: %s", id))
 		}
 		return nil, err
 	}
@@ -565,7 +573,7 @@ func (d *DB) GetSession(id string) (*models.Session, error) {
 	).Scan(&s.ID, &startedAt, &endedAt, &s.Summary, &tasksTouched)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("session not found: %s", id)
+			return nil, codedError(ErrCodeNotFound, fmt.Sprintf("session not found: %s", id))
 		}
 		return nil, err
 	}

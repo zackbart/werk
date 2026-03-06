@@ -1,5 +1,7 @@
 package db
 
+import "strings"
+
 const schema = `
 CREATE TABLE IF NOT EXISTS tasks (
   id          TEXT PRIMARY KEY,
@@ -48,9 +50,35 @@ CREATE TABLE IF NOT EXISTS sessions (
   summary       TEXT,
   tasks_touched TEXT DEFAULT '[]'
 );
+
+CREATE TABLE IF NOT EXISTS ref_counters (
+  scope       TEXT PRIMARY KEY,
+  next_value  INTEGER NOT NULL
+);
 `
 
 func (d *DB) Migrate() error {
-	_, err := d.conn.Exec(schema)
-	return err
+	if _, err := d.conn.Exec(schema); err != nil {
+		return err
+	}
+
+	if _, err := d.conn.Exec(`ALTER TABLE tasks ADD COLUMN ref TEXT`); err != nil {
+		// Ignore "duplicate column name" for existing DBs.
+		if !strings.Contains(err.Error(), "duplicate column name: ref") {
+			return err
+		}
+	}
+
+	if err := d.backfillMissingRefs(); err != nil {
+		return err
+	}
+	if err := d.rebuildRefCounters(); err != nil {
+		return err
+	}
+
+	if _, err := d.conn.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_ref ON tasks(ref)`); err != nil {
+		return err
+	}
+
+	return nil
 }
