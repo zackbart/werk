@@ -216,6 +216,7 @@
     <div class="tree-toolbar">
       <label><input type="checkbox" id="tree-show-done" onchange="renderTree()"> Show done</label>
       <label><input type="checkbox" id="tree-show-deps" checked onchange="renderTree()"> Show dependencies</label>
+      <button onclick="collapseDone()" style="font-size:12px;color:var(--text-muted);background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;cursor:pointer;">Collapse done</button>
     </div>
     <ul class="tree-list" id="tree-root"></ul>
   </div>
@@ -336,7 +337,7 @@ function renderBoard(columns) {
     // Group by epic
     const byEpic = {};
     items.forEach(t => {
-      const eid = t.epic_id || '_none';
+      const eid = t.parent_id || '_none';
       if (!byEpic[eid]) byEpic[eid] = [];
       byEpic[eid].push(t);
     });
@@ -392,7 +393,7 @@ function renderEpics() {
   }
 
   container.innerHTML = openEpics.map(epic => {
-    const epicTasks = tasks.filter(t => t.epic_id === epic.id);
+    const epicTasks = tasks.filter(t => t.parent_id === epic.id);
     const doneCount = epicTasks.filter(t => t.status === 'done').length;
     const total = epicTasks.length;
     const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
@@ -405,7 +406,7 @@ function renderEpics() {
       blocks.forEach(id => depParts.push(`<span class="dep-blocks">blocks ${id}</span>`));
 
       // Inline subtasks for this task
-      const subs = allSubtasks.filter(s => s.task_id === t.id);
+      const subs = allSubtasks.filter(s => s.parent_id === t.id);
       const subsHtml = subs.length ? subs.map(s => `
         <div class="subtask-row">
           <span class="status-dot status-${s.status}"></span>
@@ -651,6 +652,13 @@ function renderTree() {
     const li = renderNode(epic, 0);
     if (li) root.appendChild(li);
   });
+}
+
+function collapseDone() {
+  allTasks.forEach(t => {
+    if (t.status === 'done') _treeOpenState[t.id] = false;
+  });
+  renderTree();
 }
 
 function refreshGraphData() {
