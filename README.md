@@ -43,11 +43,11 @@ Or download a binary directly from [GitHub Releases](https://github.com/zackbart
 ```bash
 werk init                                          # creates .werk/tasks.db
 werk epic create "User Auth" --priority 1 --notes "Login, logout, sessions"
-werk task create "Implement login endpoint" --epic ep-a1b2c3
-werk task create "Write auth tests" --epic ep-a1b2c3
-werk dep add tk-abc123 tk-def456                   # login blocks tests
-werk task start tk-abc123
-werk task close tk-abc123
+werk task create "Implement login endpoint" --epic 1
+werk task create "Write auth tests" --epic 1
+werk dep add 1.1 1.2                               # login blocks tests
+werk task start 1.1
+werk task close 1.1
 werk task ready                                    # shows unblocked work
 werk status                                        # project summary
 ```
@@ -62,6 +62,17 @@ Epic        → a complete shippable feature or goal (3–10 tasks)
 
 Epics have no parent. Tasks must belong to an epic. Subtasks must belong to a task. Max depth is 3.
 
+## IDs and Refs
+
+Werk uses two identifiers:
+
+- `id` (immutable internal hash ID): `ep-a1b2c3`, `tk-d4e5f6`, `st-9abcde`
+- `ref` (human/model dotted reference): `1`, `1.2`, `1.2.1`
+
+Refs are assigned when items are created and never renumbered. Gaps are expected and preserved.
+
+All task-like commands accept `<id-or-ref>`. JSON responses include both `id` and `ref`.
+
 ## Commands
 
 ```
@@ -73,8 +84,9 @@ werk task create|list|show|update|start|block|close|delete|ready
 werk subtask create|list|show|update|start|close|delete
 werk dep add|remove|list
 werk decision create|list|show
-werk session start|end|list|show
-werk audit <task-id>
+werk session start|end|list|show|recover
+werk audit <id-or-ref>
+werk handoff <id-or-ref> --compact
 werk log [-n 20] [--verbose]
 
 werk serve up [--port 8080]            Start web UI
@@ -90,9 +102,9 @@ Pass `--agent` on all write commands to mark changes as agent-authored in the au
 ```bash
 werk session start --agent
 werk task ready --agent
-werk task start tk-abc123 --agent
+werk task start 1.1 --agent
 # ... do work ...
-werk task close tk-abc123 --agent
+werk task close 1.1 --agent
 werk session end --summary "Implemented login endpoint, filed 2 new tasks" --agent
 ```
 
@@ -152,7 +164,7 @@ Decisions are append-only. They can't be closed or deleted. They exist so future
 Every write through the CLI creates an audit entry recording what changed, when, and whether it was an agent or human:
 
 ```bash
-werk audit tk-abc123
+werk audit 1.1
 ```
 
 ```json
@@ -174,6 +186,32 @@ werk session end --summary "Built auth middleware, filed 3 subtasks" --agent
 
 Every CLI write during an active session automatically records which tasks were touched. The summary gives the next agent a fast orientation without reading individual audit entries.
 
+## Handoff Packets
+
+Use handoff for compact OpenClaw -> ACP transfer payloads:
+
+```bash
+werk handoff 1.2 --compact
+```
+
+The packet includes item metadata (`id` + `ref`), dependencies, relevant children, recent decisions, and recent audit context.
+
+## Error Format
+
+Errors are JSON with stable machine codes:
+
+```json
+{"code":"NOT_FOUND","message":"task not found: 9.9"}
+```
+
+Representative codes include `NOT_FOUND`, `INVALID_PARENT`, `TASK_BLOCKED`, `INVALID_STATE`, `DUPLICATE_DEP`, `CYCLE_DETECTED`, and `SESSION_STALE`.
+
+## Migration Notes
+
+- Existing `id` values are unchanged.
+- Existing rows are backfilled with dotted `ref` values on first run of the upgraded binary.
+- Ref assignment is monotonic per scope (epic/task/subtask) and does not renumber or reuse deleted references.
+
 ## Design
 
 - **Local-first** — everything lives in `.werk/tasks.db`. No network, no accounts, no sync.
@@ -181,7 +219,7 @@ Every CLI write during an active session automatically records which tasks were 
 - **Audit everything** — every state change is logged. History is never destroyed.
 - **JSON by default** — agent-friendly. `--pretty` for humans.
 - **Single binary** — CLI and web server in one executable. Pure Go, no CGO.
-- **Fail loudly** — non-zero exit codes and `{"error": "message"}` on all failures.
+- **Fail loudly** — non-zero exit codes and `{"code":"...","message":"..."}` on all failures.
 
 ## Project structure
 
