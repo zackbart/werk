@@ -129,10 +129,13 @@ func (d *DB) validateHierarchy(taskType string, parentID *string) error {
 
 func (d *DB) GetTask(id string) (*models.Task, error) {
 	t := &models.Task{}
-	var ref, createdAt, updatedAt, closedAt sql.NullString
+	var ref, createdAt, updatedAt, closedAt, startedAt sql.NullString
+	var archived int
+	var linksJSON sql.NullString
 	err := d.conn.QueryRow(
-		`SELECT id, ref, parent_id, type, title, status, priority, notes, created_at, updated_at, closed_at FROM tasks WHERE id = ?`, id,
-	).Scan(&t.ID, &ref, &t.ParentID, &t.Type, &t.Title, &t.Status, &t.Priority, &t.Notes, &createdAt, &updatedAt, &closedAt)
+		`SELECT id, ref, parent_id, type, title, status, priority, notes, archived, created_at, updated_at, closed_at, started_at, links FROM tasks WHERE id = ?`, id,
+	).Scan(&t.ID, &ref, &t.ParentID, &t.Type, &t.Title, &t.Status, &t.Priority, &t.Notes, &archived, &createdAt, &updatedAt, &closedAt, &startedAt, &linksJSON)
+	t.Archived = archived != 0
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("task not found: %s", id)
@@ -151,6 +154,13 @@ func (d *DB) GetTask(id string) (*models.Task, error) {
 	if closedAt.Valid {
 		ct := parseTime(closedAt.String)
 		t.ClosedAt = &ct
+	}
+	if startedAt.Valid {
+		st := parseTime(startedAt.String)
+		t.StartedAt = &st
+	}
+	if linksJSON.Valid && linksJSON.String != "" {
+		json.Unmarshal([]byte(linksJSON.String), &t.Links)
 	}
 	if t.ParentID != nil {
 		var parentRef sql.NullString
@@ -223,9 +233,28 @@ func (d *DB) GetTaskByIDOrRef(idOrRef string) (*models.Task, error) {
 	return d.GetTask(id)
 }
 
-func (d *DB) ListTasks(taskType string, parentID *string, status string) ([]models.Task, error) {
+type listOpts struct {
+	includeArchived bool
+}
+
+type ListOption func(*listOpts)
+
+func WithArchived() ListOption {
+	return func(o *listOpts) { o.includeArchived = true }
+}
+
+func (d *DB) ListTasks(taskType string, parentID *string, status string, opts ...ListOption) ([]models.Task, error) {
+	o := &listOpts{}
+	for _, fn := range opts {
+		fn(o)
+	}
+
 	query := `SELECT id FROM tasks WHERE type = ?`
 	args := []interface{}{taskType}
+
+	if !o.includeArchived {
+		query += ` AND archived = 0`
+	}
 
 	if parentID != nil {
 		query += ` AND parent_id = ?`
@@ -292,6 +321,195 @@ func (d *DB) UpdateTask(id string, title, notes *string, priority *int, changedB
 	return d.GetTask(id)
 }
 
+func (d *DB) AppendNote(id, text, changedBy string) (*models.Task, error) {
+	existing, err := d.GetTask(id)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	var oldNotes *string
+	var newNotes string
+	if existing.Notes != nil && *existing.Notes != "" {
+		oldNotes = existing.Notes
+		newNotes = *existing.Notes + "\n" + text
+	} else {
+		newNotes = text
+	}
+	d.conn.Exec(`UPDATE tasks SET notes = ?, updated_at = ? WHERE id = ?`, newNotes, now, id)
+	d.WriteAudit(id, "notes", oldNotes, &newNotes, changedBy)
+	d.touchSession(id)
+	return d.GetTask(id)
+}
+
+func (d *DB) AddLink(id, link, changedBy string) (*models.Task, error) {
+	existing, err := d.GetTask(id)
+	if err != nil {
+		return nil, err
+	}
+	for _, l := range existing.Links {
+		if l == link {
+			return existing, nil // already linked
+		}
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	newLinks := append(existing.Links, link)
+	linksJSON, _ := json.Marshal(newLinks)
+	d.conn.Exec(`UPDATE tasks SET links = ?, updated_at = ? WHERE id = ?`, string(linksJSON), now, id)
+	old := "[]"
+	if len(existing.Links) > 0 {
+		ob, _ := json.Marshal(existing.Links)
+		old = string(ob)
+	}
+	new := string(linksJSON)
+	d.WriteAudit(id, "links", &old, &new, changedBy)
+	d.touchSession(id)
+	return d.GetTask(id)
+}
+
+func (d *DB) RemoveLink(id, link, changedBy string) (*models.Task, error) {
+	existing, err := d.GetTask(id)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	var newLinks []string
+	for _, l := range existing.Links {
+		if l != link {
+			newLinks = append(newLinks, l)
+		}
+	}
+	if len(newLinks) == len(existing.Links) {
+		return existing, nil // link not found
+	}
+	linksJSON, _ := json.Marshal(newLinks)
+	d.conn.Exec(`UPDATE tasks SET links = ?, updated_at = ? WHERE id = ?`, string(linksJSON), now, id)
+	ob, _ := json.Marshal(existing.Links)
+	old := string(ob)
+	new := string(linksJSON)
+	d.WriteAudit(id, "links", &old, &new, changedBy)
+	d.touchSession(id)
+	return d.GetTask(id)
+}
+
+func (d *DB) GetSubtaskProgress(parentID string) (*models.SubtaskProgress, error) {
+	p := &models.SubtaskProgress{}
+	d.conn.QueryRow(`SELECT COUNT(*) FROM tasks WHERE parent_id = ? AND type = 'subtask'`, parentID).Scan(&p.Total)
+	if p.Total == 0 {
+		return nil, nil
+	}
+	d.conn.QueryRow(`SELECT COUNT(*) FROM tasks WHERE parent_id = ? AND type = 'subtask' AND status = 'done'`, parentID).Scan(&p.Done)
+	d.conn.QueryRow(`SELECT COUNT(*) FROM tasks WHERE parent_id = ? AND type = 'subtask' AND status = 'open'`, parentID).Scan(&p.Open)
+	return p, nil
+}
+
+func (d *DB) GetLogForTask(taskID string, limit int, verbose bool) ([]models.LogEntry, error) {
+	query := `
+		SELECT timestamp, event, id, title, detail FROM (
+			SELECT a.changed_at AS timestamp,
+				CASE a.new_value
+					WHEN 'in_progress' THEN 'started'
+					WHEN 'done' THEN 'closed'
+					WHEN 'blocked' THEN 'blocked'
+				END AS event,
+				t.id AS id,
+				t.type || ': ' || t.title AS title,
+				CASE WHEN ? THEN t.notes ELSE NULL END AS detail
+			FROM audit a
+			JOIN tasks t ON a.task_id = t.id
+			WHERE a.field = 'status' AND a.new_value IN ('in_progress', 'done', 'blocked')
+			AND a.task_id = ?
+
+			UNION ALL
+
+			SELECT a.changed_at AS timestamp,
+				'created' AS event,
+				t.id AS id,
+				t.type || ': ' || t.title AS title,
+				CASE WHEN ? THEN t.notes ELSE NULL END AS detail
+			FROM audit a
+			JOIN tasks t ON a.task_id = t.id
+			WHERE a.field = 'status' AND a.old_value IS NULL AND a.new_value = 'open'
+			AND a.task_id = ?
+		)
+		ORDER BY timestamp DESC
+		LIMIT ?
+	`
+	rows, err := d.conn.Query(query, verbose, taskID, verbose, taskID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []models.LogEntry
+	for rows.Next() {
+		e := models.LogEntry{}
+		var ts string
+		rows.Scan(&ts, &e.Event, &e.ID, &e.Title, &e.Detail)
+		e.Timestamp = parseTime(ts)
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
+func (d *DB) GenerateAutoSummary(sessionID string) (string, error) {
+	s, err := d.GetSession(sessionID)
+	if err != nil {
+		return "", err
+	}
+	// Use SQLite-native timestamp format for comparison (CURRENT_TIMESTAMP format)
+	startTS := s.StartedAt.Format("2006-01-02 15:04:05")
+	rows, err := d.conn.Query(`
+		SELECT a.task_id, t.type, t.title, a.field, a.old_value, a.new_value
+		FROM audit a
+		JOIN tasks t ON a.task_id = t.id
+		WHERE a.changed_at >= ?
+		ORDER BY a.changed_at ASC
+	`, startTS)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	created := []string{}
+	started := []string{}
+	closed := []string{}
+	seen := map[string]bool{}
+	for rows.Next() {
+		var taskID, taskType, title, field string
+		var oldVal, newVal sql.NullString
+		rows.Scan(&taskID, &taskType, &title, &field, &oldVal, &newVal)
+		key := taskID + field + newVal.String
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		label := taskType + " '" + title + "'"
+		if field == "status" {
+			if !oldVal.Valid && newVal.String == "open" {
+				created = append(created, label)
+			} else if newVal.String == "in_progress" {
+				started = append(started, label)
+			} else if newVal.String == "done" {
+				closed = append(closed, label)
+			}
+		}
+	}
+	var parts []string
+	if len(created) > 0 {
+		parts = append(parts, fmt.Sprintf("Created %d items", len(created)))
+	}
+	if len(started) > 0 {
+		parts = append(parts, fmt.Sprintf("Started %d items", len(started)))
+	}
+	if len(closed) > 0 {
+		parts = append(parts, fmt.Sprintf("Closed %d items", len(closed)))
+	}
+	if len(parts) == 0 {
+		return "No activity recorded", nil
+	}
+	return strings.Join(parts, ". "), nil
+}
+
 func (d *DB) SetTaskStatus(id, newStatus, changedBy string) (*models.Task, error) {
 	existing, err := d.GetTask(id)
 	if err != nil {
@@ -302,7 +520,7 @@ func (d *DB) SetTaskStatus(id, newStatus, changedBy string) (*models.Task, error
 		return existing, nil
 	}
 
-	if existing.Status == "done" {
+	if existing.Status == "done" && newStatus != "open" {
 		return nil, fmt.Errorf("cannot change status of a closed task")
 	}
 
@@ -314,6 +532,10 @@ func (d *DB) SetTaskStatus(id, newStatus, changedBy string) (*models.Task, error
 			return nil, err
 		}
 		d.conn.Exec(`UPDATE tasks SET status = ?, updated_at = ?, closed_at = ? WHERE id = ?`, newStatus, now, now, id)
+	} else if newStatus == "open" && existing.Status == "done" {
+		d.conn.Exec(`UPDATE tasks SET status = ?, updated_at = ?, closed_at = NULL WHERE id = ?`, newStatus, now, id)
+	} else if newStatus == "in_progress" && existing.StartedAt == nil {
+		d.conn.Exec(`UPDATE tasks SET status = ?, updated_at = ?, started_at = ? WHERE id = ?`, newStatus, now, now, id)
 	} else {
 		d.conn.Exec(`UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?`, newStatus, now, id)
 	}
@@ -390,12 +612,92 @@ func (d *DB) DeleteTask(id string, force bool, changedBy string) error {
 	return nil
 }
 
+func (d *DB) ReparentTask(id, newParentID, changedBy string) (*models.Task, error) {
+	existing, err := d.GetTask(id)
+	if err != nil {
+		return nil, err
+	}
+	newParent, err := d.GetTask(newParentID)
+	if err != nil {
+		return nil, fmt.Errorf("new parent not found: %s", newParentID)
+	}
+
+	// Validate hierarchy
+	switch existing.Type {
+	case "task":
+		if newParent.Type != "epic" {
+			return nil, fmt.Errorf("tasks can only be moved to epics, got %s", newParent.Type)
+		}
+	case "subtask":
+		if newParent.Type != "task" {
+			return nil, fmt.Errorf("subtasks can only be moved to tasks, got %s", newParent.Type)
+		}
+	default:
+		return nil, fmt.Errorf("cannot reparent %s items", existing.Type)
+	}
+
+	tx, err := d.conn.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	// Compute new ref
+	newRef, err := nextTaskRef(tx, existing.Type, &newParentID)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	oldParentID := ""
+	if existing.ParentID != nil {
+		oldParentID = *existing.ParentID
+	}
+	oldRef := existing.Ref
+
+	tx.Exec(`UPDATE tasks SET parent_id = ?, ref = ?, updated_at = ? WHERE id = ?`, newParentID, newRef, now, id)
+
+	// Update children refs recursively
+	d.updateChildRefsTx(tx, id, newRef)
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	d.WriteAudit(id, "parent_id", &oldParentID, &newParentID, changedBy)
+	d.WriteAudit(id, "ref", &oldRef, &newRef, changedBy)
+	d.touchSession(id)
+
+	return d.GetTask(id)
+}
+
+func (d *DB) updateChildRefsTx(tx *sql.Tx, parentID, newParentRef string) {
+	rows, err := tx.Query(`SELECT id, ref FROM tasks WHERE parent_id = ?`, parentID)
+	if err != nil {
+		return
+	}
+	var children []struct{ id, ref string }
+	for rows.Next() {
+		var c struct{ id, ref string }
+		rows.Scan(&c.id, &c.ref)
+		children = append(children, c)
+	}
+	rows.Close()
+
+	for i, child := range children {
+		newRef := fmt.Sprintf("%s.%d", newParentRef, i+1)
+		tx.Exec(`UPDATE tasks SET ref = ? WHERE id = ?`, newRef, child.id)
+		d.updateChildRefsTx(tx, child.id, newRef)
+	}
+}
+
 func (d *DB) ReadyTasks() ([]models.Task, error) {
 	// Tasks (not epics, not subtasks) that are open and have no open blockers
 	rows, err := d.conn.Query(`
 		SELECT t.id FROM tasks t
 		WHERE t.type = 'task'
 		AND t.status IN ('open', 'in_progress')
+		AND t.archived = 0
 		AND NOT EXISTS (
 			SELECT 1 FROM dependencies d
 			JOIN tasks blocker ON blocker.id = d.upstream_id
@@ -416,6 +718,77 @@ func (d *DB) ReadyTasks() ([]models.Task, error) {
 		if t != nil {
 			tasks = append(tasks, *t)
 		}
+	}
+	return tasks, nil
+}
+
+// --- Archive ---
+
+func (d *DB) ArchiveTask(id, changedBy string) (*models.Task, error) {
+	existing, err := d.GetTask(id)
+	if err != nil {
+		return nil, err
+	}
+	if existing.Archived {
+		return existing, nil
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err = d.conn.Exec(`UPDATE tasks SET archived = 1, updated_at = ? WHERE id = ?`, now, id)
+	if err != nil {
+		return nil, err
+	}
+
+	oldVal := "0"
+	newVal := "1"
+	d.WriteAudit(id, "archived", &oldVal, &newVal, changedBy)
+	d.touchSession(id)
+	return d.GetTask(id)
+}
+
+func (d *DB) UnarchiveTask(id, changedBy string) (*models.Task, error) {
+	existing, err := d.GetTask(id)
+	if err != nil {
+		return nil, err
+	}
+	if !existing.Archived {
+		return existing, nil
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err = d.conn.Exec(`UPDATE tasks SET archived = 0, updated_at = ? WHERE id = ?`, now, id)
+	if err != nil {
+		return nil, err
+	}
+
+	oldVal := "1"
+	newVal := "0"
+	d.WriteAudit(id, "archived", &oldVal, &newVal, changedBy)
+	d.touchSession(id)
+	return d.GetTask(id)
+}
+
+func (d *DB) SearchTasks(query string) ([]models.Task, error) {
+	pattern := "%" + query + "%"
+	rows, err := d.conn.Query(`
+		SELECT id FROM tasks
+		WHERE title LIKE ? OR notes LIKE ?
+		ORDER BY priority ASC, created_at ASC
+	`, pattern, pattern)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tasks []models.Task
+	for rows.Next() {
+		var id string
+		rows.Scan(&id)
+		t, err := d.GetTask(id)
+		if err != nil {
+			continue
+		}
+		tasks = append(tasks, *t)
 	}
 	return tasks, nil
 }
@@ -833,6 +1206,12 @@ func (d *DB) GetStatus() (*models.StatusSummary, error) {
 	d.conn.QueryRow(`SELECT COUNT(*) FROM tasks WHERE status = 'done'`).Scan(&s.Done)
 	d.conn.QueryRow(`SELECT COUNT(*) FROM decisions`).Scan(&s.Decisions)
 	d.conn.QueryRow(`SELECT COUNT(*) FROM sessions`).Scan(&s.Sessions)
+	// Active session: most recent session with no ended_at
+	var activeID sql.NullString
+	d.conn.QueryRow(`SELECT id FROM sessions WHERE ended_at IS NULL ORDER BY started_at DESC LIMIT 1`).Scan(&activeID)
+	if activeID.Valid {
+		s.ActiveSessionID = &activeID.String
+	}
 	return s, nil
 }
 
@@ -920,7 +1299,198 @@ func (d *DB) GetLog(limit int, verbose bool) ([]models.LogEntry, error) {
 	return entries, nil
 }
 
+// --- Export / Import ---
+
+func (d *DB) ExportAll() (*models.ExportPayload, error) {
+	payload := &models.ExportPayload{
+		SchemaVersion: 1,
+		ExportedAt:    time.Now().UTC(),
+	}
+
+	// Tasks
+	rows, err := d.conn.Query(`SELECT id, ref, parent_id, type, title, status, priority, notes, created_at, updated_at, closed_at FROM tasks ORDER BY created_at ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var t models.TaskExport
+		var ref, createdAt sql.NullString
+		var updatedAt, closedAt sql.NullString
+		rows.Scan(&t.ID, &ref, &t.ParentID, &t.Type, &t.Title, &t.Status, &t.Priority, &t.Notes, &createdAt, &updatedAt, &closedAt)
+		if ref.Valid {
+			t.Ref = ref.String
+		}
+		t.CreatedAt = parseTime(createdAt.String)
+		if updatedAt.Valid {
+			ut := parseTime(updatedAt.String)
+			t.UpdatedAt = &ut
+		}
+		if closedAt.Valid {
+			ct := parseTime(closedAt.String)
+			t.ClosedAt = &ct
+		}
+		payload.Tasks = append(payload.Tasks, t)
+	}
+	if payload.Tasks == nil {
+		payload.Tasks = []models.TaskExport{}
+	}
+
+	// Dependencies
+	depRows, err := d.conn.Query(`SELECT upstream_id, downstream_id FROM dependencies`)
+	if err != nil {
+		return nil, err
+	}
+	defer depRows.Close()
+	for depRows.Next() {
+		var dep models.Dependency
+		depRows.Scan(&dep.UpstreamID, &dep.DownstreamID)
+		payload.Dependencies = append(payload.Dependencies, dep)
+	}
+	if payload.Dependencies == nil {
+		payload.Dependencies = []models.Dependency{}
+	}
+
+	// Decisions
+	decRows, err := d.conn.Query(`SELECT id, summary, rationale, created_at, created_by FROM decisions ORDER BY created_at ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer decRows.Close()
+	for decRows.Next() {
+		var dec models.Decision
+		var createdAt string
+		decRows.Scan(&dec.ID, &dec.Summary, &dec.Rationale, &createdAt, &dec.CreatedBy)
+		dec.CreatedAt = parseTime(createdAt)
+		payload.Decisions = append(payload.Decisions, dec)
+	}
+	if payload.Decisions == nil {
+		payload.Decisions = []models.Decision{}
+	}
+
+	// Sessions
+	sessRows, err := d.conn.Query(`SELECT id, started_at, ended_at, summary, tasks_touched FROM sessions ORDER BY started_at ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer sessRows.Close()
+	for sessRows.Next() {
+		var s models.Session
+		var startedAt string
+		var endedAt sql.NullString
+		var tasksTouched string
+		sessRows.Scan(&s.ID, &startedAt, &endedAt, &s.Summary, &tasksTouched)
+		s.StartedAt = parseTime(startedAt)
+		if endedAt.Valid {
+			et := parseTime(endedAt.String)
+			s.EndedAt = &et
+		}
+		json.Unmarshal([]byte(tasksTouched), &s.TasksTouched)
+		if s.TasksTouched == nil {
+			s.TasksTouched = []string{}
+		}
+		payload.Sessions = append(payload.Sessions, s)
+	}
+	if payload.Sessions == nil {
+		payload.Sessions = []models.Session{}
+	}
+
+	// Audit
+	auditRows, err := d.conn.Query(`SELECT id, task_id, field, old_value, new_value, changed_at, changed_by FROM audit ORDER BY changed_at ASC, id ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer auditRows.Close()
+	for auditRows.Next() {
+		var e models.AuditEntry
+		var changedAt string
+		auditRows.Scan(&e.ID, &e.TaskID, &e.Field, &e.OldValue, &e.NewValue, &changedAt, &e.ChangedBy)
+		e.ChangedAt = parseTime(changedAt)
+		payload.Audit = append(payload.Audit, e)
+	}
+	if payload.Audit == nil {
+		payload.Audit = []models.AuditEntry{}
+	}
+
+	return payload, nil
+}
+
+func (d *DB) ImportAll(payload *models.ExportPayload) error {
+	// Disable foreign keys during import to allow any insert order
+	d.conn.Exec(`PRAGMA foreign_keys = OFF`)
+	defer d.conn.Exec(`PRAGMA foreign_keys = ON`)
+
+	tx, err := d.conn.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	for _, t := range payload.Tasks {
+		_, err := tx.Exec(
+			`INSERT OR IGNORE INTO tasks (id, ref, parent_id, type, title, status, priority, notes, created_at, updated_at, closed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			t.ID, t.Ref, t.ParentID, t.Type, t.Title, t.Status, t.Priority, t.Notes,
+			t.CreatedAt.UTC().Format(time.RFC3339), nilTimeStr(t.UpdatedAt), nilTimeStr(t.ClosedAt),
+		)
+		if err != nil {
+			return fmt.Errorf("importing task %s: %w", t.ID, err)
+		}
+	}
+
+	for _, dep := range payload.Dependencies {
+		tx.Exec(`INSERT OR IGNORE INTO dependencies (upstream_id, downstream_id) VALUES (?, ?)`, dep.UpstreamID, dep.DownstreamID)
+	}
+
+	for _, dec := range payload.Decisions {
+		tx.Exec(`INSERT OR IGNORE INTO decisions (id, summary, rationale, created_at, created_by) VALUES (?, ?, ?, ?, ?)`,
+			dec.ID, dec.Summary, dec.Rationale, dec.CreatedAt.UTC().Format(time.RFC3339), dec.CreatedBy)
+	}
+
+	for _, s := range payload.Sessions {
+		tt, _ := json.Marshal(s.TasksTouched)
+		tx.Exec(`INSERT OR IGNORE INTO sessions (id, started_at, ended_at, summary, tasks_touched) VALUES (?, ?, ?, ?, ?)`,
+			s.ID, s.StartedAt.UTC().Format(time.RFC3339), nilTimeStr(s.EndedAt), s.Summary, string(tt))
+	}
+
+	for _, e := range payload.Audit {
+		tx.Exec(`INSERT OR IGNORE INTO audit (id, task_id, field, old_value, new_value, changed_at, changed_by) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			e.ID, e.TaskID, e.Field, e.OldValue, e.NewValue, e.ChangedAt.UTC().Format(time.RFC3339), e.ChangedBy)
+	}
+
+	return tx.Commit()
+}
+
+// --- Audit queries ---
+
+func (d *DB) GetAuditSince(since time.Time) ([]models.AuditEntry, error) {
+	rows, err := d.conn.Query(
+		`SELECT id, task_id, field, old_value, new_value, changed_at, changed_by FROM audit WHERE changed_at >= ? ORDER BY changed_at ASC, id ASC`,
+		since.UTC().Format("2006-01-02 15:04:05"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []models.AuditEntry
+	for rows.Next() {
+		e := models.AuditEntry{}
+		var changedAt string
+		rows.Scan(&e.ID, &e.TaskID, &e.Field, &e.OldValue, &e.NewValue, &changedAt, &e.ChangedBy)
+		e.ChangedAt = parseTime(changedAt)
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
 // --- Helpers ---
+
+func nilTimeStr(t *time.Time) interface{} {
+	if t == nil {
+		return nil
+	}
+	return t.UTC().Format(time.RFC3339)
+}
 
 func parseTime(s string) time.Time {
 	// Try multiple formats since SQLite can store in different formats

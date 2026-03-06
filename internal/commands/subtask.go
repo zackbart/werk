@@ -23,6 +23,7 @@ func newSubtaskCmd() *cobra.Command {
 			}
 			taskID := mustResolveID(taskIDOrRef)
 			priority, _ := cmd.Flags().GetInt("priority")
+			priority = applyPriorityShorthands(cmd, priority)
 			notes, _ := cmd.Flags().GetString("notes")
 			var notesPtr *string
 			if cmd.Flags().Changed("notes") {
@@ -41,6 +42,9 @@ func newSubtaskCmd() *cobra.Command {
 	createCmd.Flags().String("task", "", "parent task <id-or-ref> (required)")
 	createCmd.Flags().Int("priority", 2, "priority (0-4)")
 	createCmd.Flags().String("notes", "", "notes")
+	createCmd.Flags().Bool("critical", false, "set priority to 0 (critical)")
+	createCmd.Flags().Bool("high", false, "set priority to 1 (high)")
+	createCmd.Flags().Bool("low", false, "set priority to 3 (low)")
 
 	// list
 	listCmd := &cobra.Command{
@@ -119,35 +123,31 @@ func newSubtaskCmd() *cobra.Command {
 
 	// start
 	startCmd := &cobra.Command{
-		Use:   "start <id-or-ref>",
+		Use:   "start <id-or-ref> [id-or-ref...]",
 		Short: "Start a subtask",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			id := mustResolveID(args[0])
-			t, err := database.SetTaskStatus(id, "in_progress", changedBy())
-			if err != nil {
-				outputError(err.Error())
-				return nil
-			}
-			outputJSON(t.ToJSON())
-			return nil
+			return bulkStatus(args, "in_progress")
 		},
 	}
 
 	// close
 	closeCmd := &cobra.Command{
-		Use:   "close <id-or-ref>",
+		Use:   "close <id-or-ref> [id-or-ref...]",
 		Short: "Close a subtask",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			id := mustResolveID(args[0])
-			t, err := database.SetTaskStatus(id, "done", changedBy())
-			if err != nil {
-				outputError(err.Error())
-				return nil
-			}
-			outputJSON(t.ToJSON())
-			return nil
+			return bulkStatus(args, "done")
+		},
+	}
+
+	// reopen
+	reopenCmd := &cobra.Command{
+		Use:   "reopen <id-or-ref> [id-or-ref...]",
+		Short: "Reopen a closed subtask",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return bulkStatus(args, "open")
 		},
 	}
 
@@ -171,6 +171,30 @@ func newSubtaskCmd() *cobra.Command {
 	}
 	deleteCmd.Flags().Bool("force", false, "delete even if not in open status")
 
-	subtaskCmd.AddCommand(createCmd, listCmd, showCmd, updateCmd, startCmd, closeCmd, deleteCmd)
+	// move
+	moveCmd := &cobra.Command{
+		Use:   "move <id-or-ref> --task <id-or-ref>",
+		Short: "Move a subtask to a different task",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			taskIDOrRef, _ := cmd.Flags().GetString("task")
+			if taskIDOrRef == "" {
+				outputError("--task is required")
+				return nil
+			}
+			id := mustResolveID(args[0])
+			newParentID := mustResolveID(taskIDOrRef)
+			t, err := database.ReparentTask(id, newParentID, changedBy())
+			if err != nil {
+				outputError(err.Error())
+				return nil
+			}
+			outputJSON(t.ToJSON())
+			return nil
+		},
+	}
+	moveCmd.Flags().String("task", "", "target task <id-or-ref> (required)")
+
+	subtaskCmd.AddCommand(createCmd, listCmd, showCmd, updateCmd, startCmd, closeCmd, reopenCmd, moveCmd, deleteCmd)
 	return subtaskCmd
 }

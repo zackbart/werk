@@ -15,6 +15,8 @@ import (
 
 var (
 	dbPath    string
+	rootPath  string
+	wsName    string
 	pretty    bool
 	agentMode bool
 	database  *db.DB
@@ -96,13 +98,30 @@ func prettyTable(headers []string, rows [][]string) {
 }
 
 func getDBPath() string {
+	// 1. --db flag
 	if dbPath != "" {
 		return dbPath
 	}
+	// 2. --ws <name> → resolve from workspace registry
+	if wsName != "" {
+		ws := loadWorkspaces()
+		if p, ok := ws[wsName]; ok {
+			return filepath.Join(p, ".werk", "tasks.db")
+		}
+	}
+	// 3. --root <path>
+	if rootPath != "" {
+		return filepath.Join(rootPath, ".werk", "tasks.db")
+	}
+	// 4. WERK_DB env
 	if env := os.Getenv("WERK_DB"); env != "" {
 		return env
 	}
-	// Walk up directory tree to find .werk/tasks.db
+	// 5. WERK_ROOT env
+	if env := os.Getenv("WERK_ROOT"); env != "" {
+		return filepath.Join(env, ".werk", "tasks.db")
+	}
+	// 6. Walk up directory tree to find .werk/tasks.db
 	dir, err := os.Getwd()
 	if err != nil {
 		return ".werk/tasks.db"
@@ -135,9 +154,17 @@ func NewRootCmd() *cobra.Command {
 		Use:   "werk",
 		Short: "Local-first task and decision tracker",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			// Don't open DB for init or version
+			// Don't open DB for commands that don't need it
 			if cmd.Name() == "init" || cmd.Name() == "version" || cmd.Name() == "help" {
 				return
+			}
+			if cmd.Parent() != nil && cmd.Parent().Name() == "workspace" {
+				return
+			}
+			// Allow WERK_PRETTY=1 env var to enable pretty output,
+			// but only if the --pretty flag was not explicitly set.
+			if !cmd.Flags().Changed("pretty") && os.Getenv("WERK_PRETTY") == "1" {
+				pretty = true
 			}
 			openDB()
 		},
@@ -149,6 +176,8 @@ func NewRootCmd() *cobra.Command {
 	}
 
 	rootCmd.PersistentFlags().StringVar(&dbPath, "db", "", "database path (default: .werk/tasks.db)")
+	rootCmd.PersistentFlags().StringVarP(&rootPath, "root", "r", "", "project root directory")
+	rootCmd.PersistentFlags().StringVar(&wsName, "ws", "", "named workspace")
 	rootCmd.PersistentFlags().BoolVar(&pretty, "pretty", false, "human-readable output")
 	rootCmd.PersistentFlags().BoolVar(&agentMode, "agent", false, "set changed_by to agent")
 
@@ -167,6 +196,12 @@ func NewRootCmd() *cobra.Command {
 		newHandoffCmd(),
 		newLogCmd(),
 		newServeCmd(),
+		newWorkspaceCmd(),
+		newExportCmd(),
+		newImportCmd(),
+		newDiffCmd(),
+		newNextCmd(),
+		newBatchCmd(),
 	)
 
 	return rootCmd

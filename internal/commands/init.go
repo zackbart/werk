@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -30,6 +31,16 @@ func newInitCmd() *cobra.Command {
 			// Create .gitignore in .werk/
 			gitignore := "*.db-wal\n*.db-shm\nsession.lock\nserve.pid\n"
 			os.WriteFile(".werk/.gitignore", []byte(gitignore), 0644)
+
+			// Auto-register workspace
+			if cwd, err := os.Getwd(); err == nil {
+				name := filepath.Base(cwd)
+				ws := loadWorkspaces()
+				if _, exists := ws[name]; !exists {
+					ws[name] = cwd
+					saveWorkspaces(ws)
+				}
+			}
 
 			outputJSON(map[string]string{"status": "initialized", "path": path})
 			return nil

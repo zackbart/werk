@@ -36,14 +36,19 @@ func Start(db *sql.DB, port int) error {
 	})
 
 	mux.HandleFunc("/api/epics", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, queryTasks(db, "epic", ""))
+		archived := r.URL.Query().Get("archived") == "1"
+		writeJSON(w, queryTasks(db, "epic", "", archived))
 	})
 
 	mux.HandleFunc("/api/tasks", func(w http.ResponseWriter, r *http.Request) {
 		status := r.URL.Query().Get("status")
 		epicIDOrRef := r.URL.Query().Get("epic")
-		query := "SELECT id, ref, parent_id, (SELECT ref FROM tasks p WHERE p.id = t.parent_id), type, title, status, priority, notes, created_at, updated_at, closed_at FROM tasks t WHERE type = 'task'"
+		archived := r.URL.Query().Get("archived") == "1"
+		query := "SELECT id, ref, parent_id, (SELECT ref FROM tasks p WHERE p.id = t.parent_id), type, title, status, priority, notes, archived, created_at, updated_at, closed_at FROM tasks t WHERE type = 'task'"
 		args := []interface{}{}
+		if !archived {
+			query += " AND archived = 0"
+		}
 		if epicIDOrRef != "" {
 			epicID := resolveTaskIDFromDB(db, epicIDOrRef)
 			query += " AND parent_id = ?"
@@ -57,13 +62,45 @@ func Start(db *sql.DB, port int) error {
 		writeJSON(w, queryTasksRaw(db, query, args...))
 	})
 
+	mux.HandleFunc("/api/sessions", func(w http.ResponseWriter, r *http.Request) {
+		rows, err := db.Query("SELECT id, started_at, ended_at, summary, tasks_touched FROM sessions ORDER BY started_at DESC")
+		if err != nil {
+			writeJSON(w, []interface{}{})
+			return
+		}
+		defer rows.Close()
+		var sessions []map[string]interface{}
+		for rows.Next() {
+			var id, startedAt, tasksTouched string
+			var endedAt, summary sql.NullString
+			rows.Scan(&id, &startedAt, &endedAt, &summary, &tasksTouched)
+			s := map[string]interface{}{
+				"id":         id,
+				"started_at": startedAt,
+			}
+			if endedAt.Valid {
+				s["ended_at"] = endedAt.String
+			}
+			if summary.Valid {
+				s["summary"] = summary.String
+			}
+			s["tasks_touched"] = tasksTouched
+			sessions = append(sessions, s)
+		}
+		if sessions == nil {
+			writeJSON(w, []interface{}{})
+		} else {
+			writeJSON(w, sessions)
+		}
+	})
+
 	mux.HandleFunc("/api/subtasks", func(w http.ResponseWriter, r *http.Request) {
 		taskID := r.URL.Query().Get("task")
 		if taskID == "" {
-			writeJSON(w, queryTasks(db, "subtask", ""))
+			writeJSON(w, queryTasks(db, "subtask", "", false))
 			return
 		}
-		query := "SELECT id, ref, parent_id, (SELECT ref FROM tasks p WHERE p.id = t.parent_id), type, title, status, priority, notes, created_at, updated_at, closed_at FROM tasks t WHERE type = 'subtask' AND parent_id = ? ORDER BY created_at ASC"
+		query := "SELECT id, ref, parent_id, (SELECT ref FROM tasks p WHERE p.id = t.parent_id), type, title, status, priority, notes, archived, created_at, updated_at, closed_at FROM tasks t WHERE type = 'subtask' AND parent_id = ? ORDER BY created_at ASC"
 		writeJSON(w, queryTasksRaw(db, query, taskID))
 	})
 
@@ -200,9 +237,12 @@ func resolveTaskIDFromDB(db *sql.DB, idOrRef string) string {
 	return idOrRef
 }
 
-func queryTasks(db *sql.DB, taskType, status string) []map[string]interface{} {
-	query := "SELECT id, ref, parent_id, (SELECT ref FROM tasks p WHERE p.id = t.parent_id), type, title, status, priority, notes, created_at, updated_at, closed_at FROM tasks t WHERE type = ?"
+func queryTasks(db *sql.DB, taskType, status string, includeArchived bool) []map[string]interface{} {
+	query := "SELECT id, ref, parent_id, (SELECT ref FROM tasks p WHERE p.id = t.parent_id), type, title, status, priority, notes, archived, created_at, updated_at, closed_at FROM tasks t WHERE type = ?"
 	args := []interface{}{taskType}
+	if !includeArchived {
+		query += " AND archived = 0"
+	}
 	if status != "" && status != "all" {
 		query += " AND status = ?"
 		args = append(args, status)
@@ -222,10 +262,10 @@ func queryTasksRaw(db *sql.DB, query string, args ...interface{}) []map[string]i
 	for rows.Next() {
 		var id, ref, tType, title, status string
 		var parentID, parentRef, notes sql.NullString
-		var priority int
+		var priority, archived int
 		var createdAt string
 		var updatedAt, closedAt sql.NullString
-		rows.Scan(&id, &ref, &parentID, &parentRef, &tType, &title, &status, &priority, &notes, &createdAt, &updatedAt, &closedAt)
+		rows.Scan(&id, &ref, &parentID, &parentRef, &tType, &title, &status, &priority, &notes, &archived, &createdAt, &updatedAt, &closedAt)
 
 		t := map[string]interface{}{
 			"id":         id,
@@ -236,6 +276,7 @@ func queryTasksRaw(db *sql.DB, query string, args ...interface{}) []map[string]i
 			"title":      title,
 			"status":     status,
 			"priority":   priority,
+			"archived":   archived != 0,
 			"created_at": createdAt,
 			"notes":      nil,
 			"updated_at": nil,

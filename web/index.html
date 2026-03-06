@@ -99,28 +99,37 @@
   .subtask-row:last-child { border-bottom: none; }
   .epic-notes { font-size: 12px; color: var(--text-muted); padding: 0 20px 12px 36px; line-height: 1.4; }
 
-  /* Graph view */
-  .graph-container { height: calc(100vh - 49px); position: relative; overflow: hidden; }
-  .graph-container svg { width: 100%; height: 100%; background: var(--bg); cursor: grab; }
-  .graph-container svg.panning { cursor: grabbing; }
-  .graph-container svg.dragging-node { cursor: grabbing; }
-  .graph-tooltip { position: absolute; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; font-size: 12px; pointer-events: none; display: none; z-index: 10; max-width: 280px; line-height: 1.5; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
-  .graph-tooltip.visible { display: block; }
-  .graph-tooltip .tt-title { font-weight: 600; margin-bottom: 4px; }
-  .graph-tooltip .tt-meta { color: var(--text-muted); font-size: 11px; }
-  .graph-controls { position: absolute; top: 16px; right: 16px; display: flex; flex-direction: column; gap: 4px; z-index: 5; }
-  .graph-btn { width: 32px; height: 32px; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); color: var(--text); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
-  .graph-btn:hover { background: rgba(255,255,255,0.08); }
-  .graph-filters { position: absolute; top: 16px; left: 16px; display: flex; gap: 8px; z-index: 5; }
-  .graph-filter-select { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; outline: none; transition: border-color 0.15s; -webkit-appearance: none; appearance: none; padding-right: 24px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238b949e'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
-  .graph-filter-select:hover { border-color: var(--accent); }
-  .graph-filter-select option { background: var(--surface); color: var(--text); }
-  .graph-legend { position: absolute; bottom: 16px; left: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; font-size: 11px; color: var(--text-muted); z-index: 5; line-height: 1.8; }
-  .graph-legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
-  .graph-node { transition: opacity 0.15s; }
-  .edge-hierarchy, .edge-dep { transition: opacity 0.15s; }
-  @keyframes edge-flow { to { stroke-dashoffset: -10; } }
-  .edge-dep.active { stroke-dasharray: 6 4; animation: edge-flow 0.8s linear infinite; }
+  /* Tree view */
+  .tree-container { height: calc(100vh - 49px); overflow-y: auto; padding: 20px 24px; }
+  .tree-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; }
+  .tree-toolbar label { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; cursor: pointer; }
+  .tree-toolbar input[type="checkbox"] { accent-color: var(--accent); }
+  .tree-list { list-style: none; }
+  .tree-item { border-left: 2px solid var(--border); margin-left: 0; }
+  .tree-item.depth-0 { border-left: none; margin-bottom: 8px; }
+  .tree-item.depth-1 { margin-left: 24px; }
+  .tree-item.depth-2 { margin-left: 24px; }
+  .tree-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: background 0.12s; font-size: 13px; }
+  .tree-row:hover { background: rgba(255,255,255,0.04); }
+  .tree-toggle { width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text-muted); flex-shrink: 0; transition: transform 0.15s; user-select: none; }
+  .tree-toggle.open { transform: rotate(90deg); }
+  .tree-toggle.leaf { visibility: hidden; }
+  .tree-icon { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .tree-icon.epic { border-radius: 2px; transform: rotate(45deg); width: 9px; height: 9px; }
+  .tree-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tree-title.done { text-decoration: line-through; opacity: 0.5; }
+  .tree-ref { font-size: 11px; color: var(--text-muted); font-family: monospace; flex-shrink: 0; }
+  .tree-badge { font-size: 10px; padding: 1px 6px; border-radius: 3px; flex-shrink: 0; }
+  .tree-badge.status-open { background: rgba(139,148,158,0.15); color: var(--text-muted); }
+  .tree-badge.status-in_progress { background: rgba(210,153,34,0.15); color: var(--yellow); }
+  .tree-badge.status-blocked { background: rgba(248,81,73,0.15); color: var(--red); }
+  .tree-badge.status-done { background: rgba(63,185,80,0.15); color: var(--green); }
+  .tree-progress { font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
+  .tree-dep-badge { font-size: 10px; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; }
+  .tree-dep-badge.blocking { background: rgba(248,81,73,0.12); color: var(--red); }
+  .tree-dep-badge.resolved { background: rgba(63,185,80,0.12); color: var(--green); }
+  .tree-children { overflow: hidden; transition: max-height 0.2s ease; }
+  .tree-children.collapsed { max-height: 0 !important; }
 
   /* Decisions */
   #decisions-view { height: calc(100vh - 49px); overflow-y: auto; }
@@ -166,9 +175,11 @@
   <div class="tabs">
     <button class="tab active" data-view="board">Board</button>
     <button class="tab" data-view="epics">Epics</button>
-    <button class="tab" data-view="graph">Graph</button>
+    <button class="tab" data-view="graph">Tree</button>
     <button class="tab" data-view="decisions">Decisions</button>
+    <button class="tab" data-view="sessions">Sessions</button>
   </div>
+  <input type="text" id="search-input" placeholder="Search..." style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text);font-size:12px;width:160px;outline:none;" oninput="applySearch()">
   <div class="stats" id="stats"></div>
 </div>
 
@@ -201,46 +212,21 @@
 </div>
 
 <div id="graph-view" class="view">
-  <div class="graph-container">
-    <svg id="graph-svg"></svg>
-    <div class="graph-tooltip" id="graph-tooltip"></div>
-    <div class="graph-filters">
-      <select id="filter-status" class="graph-filter-select" onchange="applyGraphFilters()">
-        <option value="not_done" selected>Open items</option>
-        <option value="">All statuses</option>
-        <option value="open">Open</option>
-        <option value="in_progress">In Progress</option>
-        <option value="blocked">Blocked</option>
-        <option value="done">Done</option>
-      </select>
-      <select id="filter-type" class="graph-filter-select" onchange="applyGraphFilters()">
-        <option value="">All types</option>
-        <option value="epic">Epics</option>
-        <option value="task">Tasks</option>
-        <option value="subtask">Subtasks</option>
-      </select>
-      <select id="filter-epic" class="graph-filter-select" onchange="applyGraphFilters()">
-        <option value="">All epics</option>
-      </select>
+  <div class="tree-container">
+    <div class="tree-toolbar">
+      <label><input type="checkbox" id="tree-show-done" onchange="renderTree()"> Show done</label>
+      <label><input type="checkbox" id="tree-show-deps" checked onchange="renderTree()"> Show dependencies</label>
     </div>
-    <div class="graph-controls">
-      <button class="graph-btn" onclick="graphZoom(0.8)" title="Zoom in">+</button>
-      <button class="graph-btn" onclick="graphZoom(1.25)" title="Zoom out">&minus;</button>
-      <button class="graph-btn" onclick="graphFitToView()" title="Fit to view">&#11034;</button>
-      <button class="graph-btn" onclick="graphReset()" title="Reset view">&#8634;</button>
-    </div>
-    <div class="graph-legend">
-      <div><span class="graph-legend-dot" style="background:var(--text-muted)"></span> Open
-        <span class="graph-legend-dot" style="background:var(--yellow);margin-left:8px"></span> Active
-        <span class="graph-legend-dot" style="background:var(--red);margin-left:8px"></span> Blocked
-        <span class="graph-legend-dot" style="background:var(--green);margin-left:8px"></span> Done</div>
-      <div style="margin-top:4px;font-size:10px">Faint line = parent &middot; <span style="color:var(--red)">Red</span> = blocks &middot; <span style="color:var(--green)">Green</span> = resolved</div>
-    </div>
+    <ul class="tree-list" id="tree-root"></ul>
   </div>
 </div>
 
 <div id="decisions-view" class="view">
   <div class="decisions-container" id="decisions-list"></div>
+</div>
+
+<div id="sessions-view" class="view" style="height:calc(100vh - 49px);overflow-y:auto;padding:16px;">
+  <div id="sessions-list"></div>
 </div>
 
 <div class="drawer-overlay" id="drawer-overlay"></div>
@@ -254,8 +240,9 @@
 
 <script>
 const API = '';
-let epics = {}, epicList = [], tasks = [], allTasks = [], allSubtasks = [], deps = [], decisions = [];
+let epics = {}, epicList = [], tasks = [], allTasks = [], allSubtasks = [], deps = [], decisions = [], sessions = [];
 let todayFilter = false;
+let searchQuery = '';
 
 const priorityLabels = ['Critical', 'High', 'Normal', 'Low', 'Backlog'];
 const statusColors = { open: '#8b949e', in_progress: '#d29922', blocked: '#f85149', done: '#3fb950' };
@@ -292,13 +279,14 @@ function computeColumns(taskList, depList) {
 }
 
 async function loadData() {
-  const [status, eList, taskList, subList, decList, depList] = await Promise.all([
+  const [status, eList, taskList, subList, decList, depList, sessList] = await Promise.all([
     fetchJSON('/api/status'),
     fetchJSON('/api/epics'),
     fetchJSON('/api/tasks?status=all'),
     fetchJSON('/api/subtasks'),
     fetchJSON('/api/decisions'),
     fetchJSON('/api/dependencies'),
+    fetchJSON('/api/sessions'),
   ]);
 
   epics = {};
@@ -309,6 +297,7 @@ async function loadData() {
   allTasks = [...epicList, ...tasks, ...allSubtasks];
   deps = depList || [];
   decisions = decList || [];
+  sessions = sessList || [];
 
   const columns = computeColumns(tasks, deps);
 
@@ -323,6 +312,7 @@ async function loadData() {
   if (activeView === 'board' || !activeView) renderBoard(columns);
   if (activeView === 'epics') renderEpics();
   if (activeView === 'decisions') renderDecisions();
+  if (activeView === 'sessions') renderSessions();
   if (activeView === 'graph') refreshGraphData();
 }
 
@@ -485,712 +475,186 @@ function renderDecisions() {
     </div>`).join('');
 }
 
-// ── Graph (Layered DAG) ──
+// ── Tree View ──
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
-let graphViewBox = null;
-let _graphHandlers = null;
-let _graphNodes = [];
-let _graphHierLinks = [];
-let _graphDepLinks = [];
-let _graphNodeMap = {};
-let _nodePositionCache = {};
-let _measureSvg = null;
-let _measureText = null;
+let _treeOpenState = {};
 
-function ensureMeasure() {
-  if (_measureSvg) return;
-  _measureSvg = document.createElementNS(SVG_NS, 'svg');
-  _measureSvg.style.cssText = 'position:absolute;top:-9999px;left:-9999px;width:0;height:0;overflow:hidden';
-  _measureText = document.createElementNS(SVG_NS, 'text');
-  _measureText.setAttribute('font-family', "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif");
-  _measureSvg.appendChild(_measureText);
-  document.body.appendChild(_measureSvg);
-}
+function renderTree() {
+  const root = document.getElementById('tree-root');
+  const showDone = document.getElementById('tree-show-done').checked;
+  const showDeps = document.getElementById('tree-show-deps').checked;
 
-function measureTextWidth(str, fontSize, fontWeight) {
-  ensureMeasure();
-  _measureText.setAttribute('font-size', fontSize);
-  _measureText.setAttribute('font-weight', fontWeight || '400');
-  _measureText.textContent = str;
-  return _measureText.getComputedTextLength();
-}
+  // Build lookup maps
+  const taskMap = {};
+  allTasks.forEach(t => taskMap[t.id] = t);
 
-function computeNodeSize(n) {
-  const fontSize = n.type === 'epic' ? 13 : n.type === 'task' ? 12 : 11;
-  const fontWeight = n.type === 'epic' ? '600' : '400';
-  const textW = measureTextWidth(n.title, fontSize, fontWeight);
-  const padX = n.type === 'epic' ? 40 : 36;
-  const minW = { epic: 150, task: 120, subtask: 100 }[n.type];
-  const maxW = { epic: 280, task: 240, subtask: 200 }[n.type];
-  n.w = Math.max(minW, Math.min(maxW, textW + padX));
-  n.h = { epic: 44, task: 36, subtask: 30 }[n.type];
-}
+  // Build dependency lookup
+  const blockedByMap = {};  // id → [upstream items that block it]
+  const blocksMap = {};     // id → [downstream items it blocks]
+  deps.forEach(d => {
+    if (!blockedByMap[d.downstream_id]) blockedByMap[d.downstream_id] = [];
+    if (!blocksMap[d.upstream_id]) blocksMap[d.upstream_id] = [];
+    blockedByMap[d.downstream_id].push(d.upstream_id);
+    blocksMap[d.upstream_id].push(d.downstream_id);
+  });
 
-function renderGraph() {
-  const svg = document.getElementById('graph-svg');
-  const rect = svg.getBoundingClientRect();
-  const W = rect.width, H = rect.height;
-  svg.innerHTML = '';
+  // Build tree: epics → tasks → subtasks
+  const epicNodes = epicList.map(e => ({
+    ...e,
+    children: tasks
+      .filter(t => t.parent_id === e.id)
+      .sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title))
+      .map(t => ({
+        ...t,
+        children: allSubtasks
+          .filter(s => s.parent_id === t.id)
+          .sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title))
+      }))
+  })).sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title));
 
-  if (!allTasks.length) {
-    svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="#8b949e" font-size="14">No tasks to display</text>';
+  if (!epicNodes.length) {
+    root.innerHTML = '<div class="empty-state">No items to display</div>';
     return;
   }
 
-  const layerGapY = 70;
-  const siblingGapX = 20;
-  const treeGapX = 48;
+  root.innerHTML = '';
 
-  // ── Build node objects with measured sizes ──
-  const nodeMap = {};
-  const allNodes = [];
-
-  allTasks.forEach(t => {
-    const layer = t.type === 'epic' ? 0 : t.type === 'task' ? 1 : 2;
-    const n = { id: t.id, title: t.title, status: t.status, type: t.type,
-      priority: t.priority, notes: t.notes, parentId: t.epic_id || t.task_id,
-      x: 0, y: 0, w: 0, h: 0, layer, _userPlaced: false, children: [] };
-    computeNodeSize(n);
-    nodeMap[n.id] = n;
-    allNodes.push(n);
-  });
-
-  // ── Build parent→children tree ──
-  const roots = [];
-  allNodes.forEach(n => {
-    if (n.parentId && nodeMap[n.parentId]) {
-      nodeMap[n.parentId].children.push(n);
-    } else {
-      roots.push(n);
-    }
-  });
-  // Sort children by priority then title
-  Object.values(nodeMap).forEach(n => {
-    n.children.sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title));
-  });
-  // Sort roots: epics first by priority, then orphan tasks, then orphan subtasks
-  roots.sort((a, b) => {
-    const typeOrder = { epic: 0, task: 1, subtask: 2 };
-    if (typeOrder[a.type] !== typeOrder[b.type]) return typeOrder[a.type] - typeOrder[b.type];
-    return a.priority - b.priority || a.title.localeCompare(b.title);
-  });
-
-  // ── Compute subtree widths bottom-up ──
-  function computeSubtreeWidth(node) {
-    if (node.children.length === 0) {
-      node._subtreeW = node.w;
-      return node._subtreeW;
-    }
-    const childrenW = node.children.reduce((sum, c) => sum + computeSubtreeWidth(c), 0)
-      + (node.children.length - 1) * siblingGapX;
-    node._subtreeW = Math.max(node.w, childrenW);
-    return node._subtreeW;
-  }
-  roots.forEach(r => computeSubtreeWidth(r));
-
-  // ── Position nodes top-down ──
-  function positionTree(node, x, y) {
-    node.y = y;
-    // Center this node over its subtree
-    node.x = x + (node._subtreeW - node.w) / 2;
-
-    if (node.children.length > 0) {
-      const childrenTotalW = node.children.reduce((sum, c) => sum + c._subtreeW, 0)
-        + (node.children.length - 1) * siblingGapX;
-      let cx = x + (node._subtreeW - childrenTotalW) / 2;
-      const childY = y + node.h + layerGapY;
-      node.children.forEach(c => {
-        positionTree(c, cx, childY);
-        cx += c._subtreeW + siblingGapX;
-      });
-    }
+  function countChildren(node) {
+    if (!node.children) return { total: 0, done: 0 };
+    let total = 0, done = 0;
+    node.children.forEach(c => {
+      total++;
+      if (c.status === 'done') done++;
+    });
+    return { total, done };
   }
 
-  let curX = 0;
-  roots.forEach(r => {
-    positionTree(r, curX, 50);
-    curX += r._subtreeW + treeGapX;
-  });
-
-  // ── Collect all nodes flat ──
-  const nodes = [];
-  function collectNodes(n) { nodes.push(n); n.children.forEach(c => collectNodes(c)); }
-  roots.forEach(r => collectNodes(r));
-
-  // ── Build links ──
-  const hierLinks = [];
-  const depLinks = [];
-  allTasks.forEach(t => {
-    const pid = t.epic_id || t.task_id;
-    if (pid && nodeMap[pid] && nodeMap[t.id]) {
-      hierLinks.push({ source: nodeMap[pid], target: nodeMap[t.id] });
+  function shouldShow(item) {
+    if (showDone) return true;
+    if (item.status === 'done') {
+      // Show if any child is not done
+      if (item.children && item.children.some(c => c.status !== 'done')) return true;
+      return false;
     }
-  });
-  deps.forEach(d => {
-    if (nodeMap[d.upstream_id] && nodeMap[d.downstream_id]) {
-      depLinks.push({ source: nodeMap[d.upstream_id], target: nodeMap[d.downstream_id] });
-    }
-  });
+    return true;
+  }
 
-  // ── Restore cached positions for user-placed nodes ──
-  nodes.forEach(n => {
-    const cached = _nodePositionCache[n.id];
-    if (cached && cached.userPlaced) {
-      n.x = cached.x;
-      n.y = cached.y;
-      n._userPlaced = true;
-    }
-  });
+  function renderNode(item, depth) {
+    if (!shouldShow(item)) return null;
 
-  // ── Compute content bounds and set viewBox ──
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  nodes.forEach(n => {
-    minX = Math.min(minX, n.x);
-    minY = Math.min(minY, n.y);
-    maxX = Math.max(maxX, n.x + n.w);
-    maxY = Math.max(maxY, n.y + n.h);
-  });
-  const pad = 60;
-  const contentW = Math.max(maxX - minX + pad * 2, W);
-  const contentH = Math.max(maxY - minY + pad * 2, H);
-  const vbX = minX - pad - (contentW - (maxX - minX + pad * 2)) / 2;
-  const vbY = minY - pad - (contentH - (maxY - minY + pad * 2)) / 2;
-  graphViewBox = { x: vbX, y: vbY, w: contentW, h: contentH };
-  svg.setAttribute('viewBox', `${vbX} ${vbY} ${contentW} ${contentH}`);
+    const li = document.createElement('li');
+    li.className = `tree-item depth-${depth}`;
 
-  // ── SVG Defs ──
-  const defs = document.createElementNS(SVG_NS, 'defs');
-  defs.innerHTML = `
-    <marker id="arrow-blocking" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto">
-      <path d="M0,0 L10,3 L0,6" fill="${statusColors.blocked}"/>
-    </marker>
-    <marker id="arrow-resolved" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="6" markerHeight="5" orient="auto">
-      <path d="M0,0 L10,3 L0,6" fill="${statusColors.done}"/>
-    </marker>
-    <filter id="node-shadow" x="-10%" y="-10%" width="120%" height="130%">
-      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.25"/>
-    </filter>`;
-  svg.appendChild(defs);
+    const row = document.createElement('div');
+    row.className = 'tree-row';
+    row.onclick = (e) => {
+      if (e.target.closest('.tree-toggle')) return;
+      openDrawer(item.id);
+    };
 
-  // ── Render hierarchy edges (solid, faint) ──
-  hierLinks.forEach((l, i) => {
-    const sx = l.source.x + l.source.w / 2;
-    const sy = l.source.y + l.source.h;
-    const tx = l.target.x + l.target.w / 2;
-    const ty = l.target.y;
-    const path = document.createElementNS(SVG_NS, 'path');
-    path.classList.add('edge-hierarchy');
-    path.dataset.sourceId = l.source.id;
-    path.dataset.targetId = l.target.id;
-    path.dataset.baseOpacity = '0.35';
-    const my = sy + (ty - sy) / 2;
-    path.setAttribute('d', `M${sx},${sy} C${sx},${my} ${tx},${my} ${tx},${ty}`);
-    path.setAttribute('stroke', '#30363d');
-    path.setAttribute('stroke-width', '1');
-    path.setAttribute('fill', 'none');
-    path.setAttribute('opacity', '0.35');
-    svg.appendChild(path);
-  });
-
-  // ── Render dependency edges (colored by resolution state) ──
-  depLinks.forEach((l, i) => {
-    const resolved = l.source.status === 'done';
-    const path = document.createElementNS(SVG_NS, 'path');
-    path.classList.add('edge-dep');
-    if (!resolved) path.classList.add('active');
-    path.dataset.sourceId = l.source.id;
-    path.dataset.targetId = l.target.id;
-    const baseOp = resolved ? '0.4' : '0.85';
-    path.dataset.baseOpacity = baseOp;
-    // Connect from the nearest edges of the two nodes
-    const sCx = l.source.x + l.source.w / 2, sCy = l.source.y + l.source.h / 2;
-    const tCx = l.target.x + l.target.w / 2, tCy = l.target.y + l.target.h / 2;
-    let sx, sy, tx, ty;
-    if (Math.abs(tCy - sCy) > Math.abs(tCx - sCx)) {
-      // Mostly vertical — connect bottom-to-top
-      sx = sCx; sy = tCy > sCy ? l.source.y + l.source.h : l.source.y;
-      tx = tCx; ty = tCy > sCy ? l.target.y : l.target.y + l.target.h;
-    } else {
-      // Mostly horizontal — connect side-to-side
-      sx = tCx > sCx ? l.source.x + l.source.w : l.source.x;
-      sy = sCy;
-      tx = tCx > sCx ? l.target.x : l.target.x + l.target.w;
-      ty = tCy;
-    }
-    const mx = (sx + tx) / 2, my = (sy + ty) / 2;
-    const curveStr = Math.abs(ty - sy) > Math.abs(tx - sx)
-      ? `M${sx},${sy} C${sx},${my} ${tx},${my} ${tx},${ty}`
-      : `M${sx},${sy} C${mx},${sy} ${mx},${ty} ${tx},${ty}`;
-    path.setAttribute('d', curveStr);
-    path.setAttribute('stroke', resolved ? statusColors.done : statusColors.blocked);
-    path.setAttribute('stroke-width', resolved ? '1.5' : '2');
-    path.setAttribute('fill', 'none');
-    path.setAttribute('marker-end', resolved ? 'url(#arrow-resolved)' : 'url(#arrow-blocking)');
-    path.setAttribute('opacity', baseOp);
-    svg.appendChild(path);
-  });
-
-  // ── Render nodes ──
-  nodes.forEach(n => {
-    const g = document.createElementNS(SVG_NS, 'g');
-    g.dataset.nodeId = n.id;
-    g.classList.add('graph-node');
-    g.style.cursor = 'pointer';
-    if (n.status === 'done') g.style.opacity = '0.6';
-
-    // Background rect
-    const r = document.createElementNS(SVG_NS, 'rect');
-    r.setAttribute('x', n.x);
-    r.setAttribute('y', n.y);
-    r.setAttribute('width', n.w);
-    r.setAttribute('height', n.h);
-    r.setAttribute('rx', '6');
-    r.setAttribute('fill', '#161b22');
-    r.setAttribute('stroke', '#30363d');
-    r.setAttribute('stroke-width', '1');
-    r.setAttribute('filter', 'url(#node-shadow)');
-    r.classList.add('node-bg');
-    g.appendChild(r);
-
-    // Left status accent bar
-    const bar = document.createElementNS(SVG_NS, 'rect');
-    bar.setAttribute('x', n.x);
-    bar.setAttribute('y', n.y + 2);
-    bar.setAttribute('width', '3');
-    bar.setAttribute('height', n.h - 4);
-    bar.setAttribute('rx', '1.5');
-    bar.setAttribute('fill', statusColors[n.status] || '#8b949e');
-    bar.classList.add('node-bar');
-    g.appendChild(bar);
+    // Toggle arrow
+    const toggle = document.createElement('span');
+    const hasVisibleChildren = item.children && item.children.some(c => shouldShow(c));
+    const isOpen = _treeOpenState[item.id] !== false; // default open
+    toggle.className = 'tree-toggle' + (hasVisibleChildren ? (isOpen ? ' open' : '') : ' leaf');
+    toggle.textContent = '\u25B6';
+    toggle.onclick = (e) => {
+      e.stopPropagation();
+      _treeOpenState[item.id] = !isOpen;
+      renderTree();
+    };
+    row.appendChild(toggle);
 
     // Type icon
-    const iconX = n.x + 14, iconY = n.y + n.h / 2;
-    if (n.type === 'epic') {
-      const d = document.createElementNS(SVG_NS, 'polygon');
-      d.setAttribute('points', `${iconX},${iconY - 5} ${iconX + 5},${iconY} ${iconX},${iconY + 5} ${iconX - 5},${iconY}`);
-      d.setAttribute('fill', '#bc8cff');
-      d.setAttribute('opacity', '0.8');
-      d.classList.add('node-icon');
-      g.appendChild(d);
-    } else if (n.type === 'task') {
-      const c = document.createElementNS(SVG_NS, 'circle');
-      c.setAttribute('cx', iconX); c.setAttribute('cy', iconY);
-      c.setAttribute('r', '4');
-      c.setAttribute('fill', statusColors[n.status] || '#8b949e');
-      c.setAttribute('opacity', '0.8');
-      c.classList.add('node-icon');
-      g.appendChild(c);
-    } else {
-      const c = document.createElementNS(SVG_NS, 'circle');
-      c.setAttribute('cx', iconX); c.setAttribute('cy', iconY);
-      c.setAttribute('r', '2.5');
-      c.setAttribute('fill', statusColors[n.status] || '#8b949e');
-      c.setAttribute('opacity', '0.6');
-      c.classList.add('node-icon');
-      g.appendChild(c);
+    const icon = document.createElement('span');
+    icon.className = 'tree-icon' + (item.type === 'epic' ? ' epic' : '');
+    icon.style.background = item.type === 'epic' ? '#bc8cff' : (statusColors[item.status] || '#8b949e');
+    row.appendChild(icon);
+
+    // Ref
+    if (item.ref) {
+      const ref = document.createElement('span');
+      ref.className = 'tree-ref';
+      ref.textContent = item.ref;
+      row.appendChild(ref);
     }
 
-    // Title text (measured, with ellipsis)
-    const textX = n.x + 26;
-    const fontSize = n.type === 'epic' ? 13 : n.type === 'task' ? 12 : 11;
-    const fontWeight = n.type === 'epic' ? '600' : '400';
-    const availW = n.w - 34;
-    let displayTitle = n.title;
-    const fullW = measureTextWidth(n.title, fontSize, fontWeight);
-    if (fullW > availW) {
-      let lo = 0, hi = n.title.length;
-      while (lo < hi) {
-        const mid = (lo + hi + 1) >> 1;
-        if (measureTextWidth(n.title.slice(0, mid) + '\u2026', fontSize, fontWeight) <= availW) lo = mid;
-        else hi = mid - 1;
-      }
-      displayTitle = n.title.slice(0, lo) + '\u2026';
-    }
-    const text = document.createElementNS(SVG_NS, 'text');
-    text.setAttribute('x', textX);
-    text.setAttribute('y', iconY);
-    text.setAttribute('dominant-baseline', 'central');
-    text.setAttribute('fill', '#e6edf3');
-    text.setAttribute('font-size', fontSize);
-    text.setAttribute('font-weight', fontWeight);
-    text.classList.add('node-title');
-    text.textContent = displayTitle;
-    g.appendChild(text);
+    // Title
+    const title = document.createElement('span');
+    title.className = 'tree-title' + (item.status === 'done' ? ' done' : '');
+    title.style.fontWeight = item.type === 'epic' ? '600' : '400';
+    title.textContent = item.title;
+    row.appendChild(title);
 
-    // Priority pip (top-right, critical/high only)
-    if (n.priority <= 1) {
-      const pip = document.createElementNS(SVG_NS, 'circle');
-      pip.setAttribute('cx', n.x + n.w - 8);
-      pip.setAttribute('cy', n.y + 8);
-      pip.setAttribute('r', '3');
-      pip.setAttribute('fill', n.priority === 0 ? '#f85149' : '#f0883e');
-      pip.classList.add('node-pip');
-      g.appendChild(pip);
+    // Dependency badges
+    if (showDeps) {
+      const blocked = (blockedByMap[item.id] || []).filter(uid => taskMap[uid] && taskMap[uid].status !== 'done');
+      const blocking = (blocksMap[item.id] || []).filter(did => taskMap[did] && taskMap[did].status !== 'done');
+      blocked.forEach(uid => {
+        const badge = document.createElement('span');
+        badge.className = 'tree-dep-badge blocking';
+        const ref = taskMap[uid]?.ref || uid.slice(0, 7);
+        badge.textContent = 'blocked by ' + ref;
+        row.appendChild(badge);
+      });
+      blocking.forEach(did => {
+        const badge = document.createElement('span');
+        badge.className = 'tree-dep-badge blocking';
+        const ref = taskMap[did]?.ref || did.slice(0, 7);
+        badge.textContent = 'blocks ' + ref;
+        row.appendChild(badge);
+      });
     }
 
-    svg.appendChild(g);
-  });
-
-  // Store references for interaction
-  _graphNodes = nodes;
-  _graphHierLinks = hierLinks;
-  _graphDepLinks = depLinks;
-  _graphNodeMap = nodeMap;
-
-  // Populate epic filter dropdown
-  populateEpicFilter();
-
-  // ── Interaction ──
-  setupGraphInteraction(svg);
-}
-
-// ── Reposition a single node's SVG group ──
-function repositionNodeGroup(svg, node) {
-  const g = svg.querySelector(`g[data-node-id="${node.id}"]`);
-  if (!g) return;
-  const bg = g.querySelector('.node-bg');
-  if (bg) { bg.setAttribute('x', node.x); bg.setAttribute('y', node.y); }
-  const bar = g.querySelector('.node-bar');
-  if (bar) { bar.setAttribute('x', node.x); bar.setAttribute('y', node.y + 2); }
-  const icon = g.querySelector('.node-icon');
-  if (icon) {
-    const iconX = node.x + 14, iconY = node.y + node.h / 2;
-    if (icon.tagName === 'polygon') {
-      icon.setAttribute('points', `${iconX},${iconY - 5} ${iconX + 5},${iconY} ${iconX},${iconY + 5} ${iconX - 5},${iconY}`);
-    } else {
-      icon.setAttribute('cx', iconX); icon.setAttribute('cy', iconY);
+    // Child progress
+    if (item.children && item.children.length > 0) {
+      const { total, done } = countChildren(item);
+      const prog = document.createElement('span');
+      prog.className = 'tree-progress';
+      prog.textContent = `${done}/${total}`;
+      row.appendChild(prog);
     }
-  }
-  const text = g.querySelector('.node-title');
-  if (text) { text.setAttribute('x', node.x + 26); text.setAttribute('y', node.y + node.h / 2); }
-  const pip = g.querySelector('.node-pip');
-  if (pip) { pip.setAttribute('cx', node.x + node.w - 8); pip.setAttribute('cy', node.y + 8); }
-}
 
-// ── Update edges connected to a node ──
-function updateConnectedEdges(svg, node) {
-  svg.querySelectorAll('.edge-hierarchy, .edge-dep').forEach(path => {
-    const sid = path.dataset.sourceId;
-    const tid = path.dataset.targetId;
-    if (sid !== node.id && tid !== node.id) return;
-    const src = _graphNodeMap[sid];
-    const tgt = _graphNodeMap[tid];
-    if (!src || !tgt) return;
-    if (path.classList.contains('edge-hierarchy')) {
-      const sx = src.x + src.w / 2, sy = src.y + src.h;
-      const tx = tgt.x + tgt.w / 2, ty = tgt.y;
-      const my = sy + (ty - sy) / 2;
-      path.setAttribute('d', `M${sx},${sy} C${sx},${my} ${tx},${my} ${tx},${ty}`);
-    } else {
-      const sCx = src.x + src.w / 2, sCy = src.y + src.h / 2;
-      const tCx = tgt.x + tgt.w / 2, tCy = tgt.y + tgt.h / 2;
-      let sx, sy, tx, ty;
-      if (Math.abs(tCy - sCy) > Math.abs(tCx - sCx)) {
-        sx = sCx; sy = tCy > sCy ? src.y + src.h : src.y;
-        tx = tCx; ty = tCy > sCy ? tgt.y : tgt.y + tgt.h;
-      } else {
-        sx = tCx > sCx ? src.x + src.w : src.x; sy = sCy;
-        tx = tCx > sCx ? tgt.x : tgt.x + tgt.w; ty = tCy;
-      }
-      const mx = (sx + tx) / 2, my = (sy + ty) / 2;
-      const curveStr = Math.abs(ty - sy) > Math.abs(tx - sx)
-        ? `M${sx},${sy} C${sx},${my} ${tx},${my} ${tx},${ty}`
-        : `M${sx},${sy} C${mx},${sy} ${mx},${ty} ${tx},${ty}`;
-      path.setAttribute('d', curveStr);
+    // Status badge
+    const badge = document.createElement('span');
+    badge.className = `tree-badge status-${item.status}`;
+    badge.textContent = item.status === 'in_progress' ? 'active' : item.status;
+    row.appendChild(badge);
+
+    // Priority indicator for critical/high
+    if (item.priority <= 1) {
+      const pri = document.createElement('span');
+      pri.className = 'tree-badge';
+      pri.style.background = item.priority === 0 ? 'rgba(248,81,73,0.15)' : 'rgba(240,136,62,0.15)';
+      pri.style.color = item.priority === 0 ? 'var(--red)' : 'var(--orange)';
+      pri.textContent = item.priority === 0 ? 'P0' : 'P1';
+      row.appendChild(pri);
     }
-  });
-}
 
-// ── SVG coordinate helper ──
-function svgPoint(svg, clientX, clientY) {
-  const pt = svg.createSVGPoint();
-  pt.x = clientX; pt.y = clientY;
-  return pt.matrixTransform(svg.getScreenCTM().inverse());
-}
+    li.appendChild(row);
 
-// ── Hover highlight ──
-function highlightConnections(svg, nodeId) {
-  const connected = new Set([nodeId]);
-  _graphHierLinks.forEach(l => {
-    if (l.source.id === nodeId) connected.add(l.target.id);
-    if (l.target.id === nodeId) connected.add(l.source.id);
-  });
-  _graphDepLinks.forEach(l => {
-    if (l.source.id === nodeId) connected.add(l.target.id);
-    if (l.target.id === nodeId) connected.add(l.source.id);
-  });
-
-  svg.querySelectorAll('.graph-node').forEach(g => {
-    const nid = g.dataset.nodeId;
-    const node = _graphNodeMap[nid];
-    const isDone = node && node.status === 'done';
-    if (connected.has(nid)) {
-      g.style.opacity = nid === nodeId ? '1' : (isDone ? '0.7' : '0.9');
-    } else {
-      g.style.opacity = '0.12';
+    // Children
+    if (hasVisibleChildren) {
+      const childList = document.createElement('ul');
+      childList.className = 'tree-list tree-children' + (isOpen ? '' : ' collapsed');
+      item.children.forEach(child => {
+        const childLi = renderNode(child, depth + 1);
+        if (childLi) childList.appendChild(childLi);
+      });
+      li.appendChild(childList);
     }
-  });
-  svg.querySelectorAll('.edge-hierarchy, .edge-dep').forEach(path => {
-    const src = path.dataset.sourceId;
-    const tgt = path.dataset.targetId;
-    if (connected.has(src) && connected.has(tgt)) {
-      path.style.opacity = path.classList.contains('edge-dep') ? '1' : '0.5';
-    } else {
-      path.style.opacity = '0.05';
-    }
-  });
-}
 
-function clearHighlight(svg) {
-  svg.querySelectorAll('.graph-node').forEach(g => {
-    const node = _graphNodeMap[g.dataset.nodeId];
-    g.style.opacity = node && node.status === 'done' ? '0.6' : '';
-  });
-  svg.querySelectorAll('.edge-hierarchy, .edge-dep').forEach(path => {
-    path.style.opacity = path.dataset.baseOpacity || '';
-  });
-}
-
-// ── Graph interaction ──
-function setupGraphInteraction(svg) {
-  if (_graphHandlers) {
-    svg.removeEventListener('mousedown', _graphHandlers.mousedown);
-    svg.removeEventListener('mousemove', _graphHandlers.mousemove);
-    svg.removeEventListener('mouseup', _graphHandlers.mouseup);
-    svg.removeEventListener('mouseleave', _graphHandlers.mouseleave);
-    svg.removeEventListener('click', _graphHandlers.click);
-    svg.removeEventListener('wheel', _graphHandlers.wheel);
+    return li;
   }
 
-  let isPanning = false;
-  let panStart = null;
-  let didDrag = false;
-  let dragNode = null;
-  let dragOffset = null;
-  let hoveredNodeId = null;
-
-  const handlers = {};
-
-  handlers.mousedown = e => {
-    didDrag = false;
-    const nodeG = e.target.closest('g[data-node-id]');
-    if (nodeG) {
-      const nid = nodeG.dataset.nodeId;
-      dragNode = _graphNodeMap[nid];
-      if (dragNode) {
-        const pt = svgPoint(svg, e.clientX, e.clientY);
-        dragOffset = { dx: pt.x - dragNode.x, dy: pt.y - dragNode.y };
-        svg.classList.add('dragging-node');
-      }
-      e.preventDefault();
-    } else {
-      isPanning = true;
-      panStart = { mx: e.clientX, my: e.clientY, vx: graphViewBox.x, vy: graphViewBox.y };
-      svg.classList.add('panning');
-    }
-    e.preventDefault();
-  };
-
-  handlers.mousemove = e => {
-    // Node drag
-    if (dragNode && dragOffset) {
-      const pt = svgPoint(svg, e.clientX, e.clientY);
-      dragNode.x = pt.x - dragOffset.dx;
-      dragNode.y = pt.y - dragOffset.dy;
-      dragNode._userPlaced = true;
-      repositionNodeGroup(svg, dragNode);
-      updateConnectedEdges(svg, dragNode);
-      didDrag = true;
-      return;
-    }
-    // Pan
-    if (isPanning && panStart) {
-      const dx = e.clientX - panStart.mx;
-      const dy = e.clientY - panStart.my;
-      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) didDrag = true;
-      const scale = graphViewBox.w / svg.getBoundingClientRect().width;
-      graphViewBox.x = panStart.vx - dx * scale;
-      graphViewBox.y = panStart.vy - dy * scale;
-      svg.setAttribute('viewBox', `${graphViewBox.x} ${graphViewBox.y} ${graphViewBox.w} ${graphViewBox.h}`);
-    }
-    // Hover highlight + tooltip
-    const nodeG = e.target.closest('g[data-node-id]');
-    const tooltip = document.getElementById('graph-tooltip');
-    if (nodeG) {
-      const nid = nodeG.dataset.nodeId;
-      if (hoveredNodeId !== nid) {
-        hoveredNodeId = nid;
-        highlightConnections(svg, nid);
-      }
-      const n = _graphNodeMap[nid];
-      if (n) {
-        tooltip.innerHTML = `<div class="tt-title">${esc(n.title)}</div>
-          <div class="tt-meta">${n.id} &middot; ${n.type} &middot; ${n.status} &middot; ${priorityLabels[n.priority]}</div>
-          ${n.notes ? `<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">${esc(n.notes)}</div>` : ''}`;
-        const cr = svg.closest('.graph-container').getBoundingClientRect();
-        tooltip.style.left = (e.clientX - cr.left + 12) + 'px';
-        tooltip.style.top = (e.clientY - cr.top - 10) + 'px';
-        tooltip.classList.add('visible');
-      }
-    } else {
-      if (hoveredNodeId) {
-        hoveredNodeId = null;
-        clearHighlight(svg);
-      }
-      tooltip.classList.remove('visible');
-    }
-  };
-
-  handlers.mouseup = () => {
-    if (dragNode) {
-      _nodePositionCache[dragNode.id] = { x: dragNode.x, y: dragNode.y, userPlaced: true };
-    }
-    dragNode = null;
-    dragOffset = null;
-    isPanning = false;
-    panStart = null;
-    svg.classList.remove('panning');
-    svg.classList.remove('dragging-node');
-  };
-
-  handlers.mouseleave = () => {
-    if (hoveredNodeId) { hoveredNodeId = null; clearHighlight(svg); }
-    document.getElementById('graph-tooltip').classList.remove('visible');
-  };
-
-  handlers.click = e => {
-    if (didDrag) return;
-    const nodeG = e.target.closest('g[data-node-id]');
-    if (nodeG) openDrawer(nodeG.dataset.nodeId);
-  };
-
-  handlers.wheel = e => {
-    e.preventDefault();
-    const factor = e.deltaY > 0 ? 1.1 : 0.9;
-    const ctm = svg.getScreenCTM();
-    if (!ctm) return;
-    const inv = ctm.inverse();
-    const px = e.clientX * inv.a + inv.e;
-    const py = e.clientY * inv.d + inv.f;
-    graphViewBox.x = px - (px - graphViewBox.x) * factor;
-    graphViewBox.y = py - (py - graphViewBox.y) * factor;
-    graphViewBox.w *= factor;
-    graphViewBox.h *= factor;
-    svg.setAttribute('viewBox', `${graphViewBox.x} ${graphViewBox.y} ${graphViewBox.w} ${graphViewBox.h}`);
-  };
-
-  svg.addEventListener('mousedown', handlers.mousedown);
-  svg.addEventListener('mousemove', handlers.mousemove);
-  svg.addEventListener('mouseup', handlers.mouseup);
-  svg.addEventListener('mouseleave', handlers.mouseleave);
-  svg.addEventListener('click', handlers.click);
-  svg.addEventListener('wheel', handlers.wheel, { passive: false });
-  _graphHandlers = handlers;
-}
-
-// ── Filter controls ──
-function populateEpicFilter() {
-  const sel = document.getElementById('filter-epic');
-  const current = sel.value;
-  sel.innerHTML = '<option value="">All epics</option>';
-  epicList.forEach(e => {
-    const opt = document.createElement('option');
-    opt.value = e.id;
-    opt.textContent = e.title;
-    sel.appendChild(opt);
-  });
-  sel.value = current;
-}
-
-function applyGraphFilters() {
-  const svg = document.getElementById('graph-svg');
-  const filterStatus = document.getElementById('filter-status').value;
-  const filterType = document.getElementById('filter-type').value;
-  const filterEpic = document.getElementById('filter-epic').value;
-
-  const visibleIds = new Set();
-  _graphNodes.forEach(n => {
-    let show = true;
-    if (filterStatus === 'not_done' && n.status === 'done') show = false;
-    else if (filterStatus && filterStatus !== 'not_done' && n.status !== filterStatus) show = false;
-    if (filterType && n.type !== filterType) show = false;
-    if (filterEpic) {
-      if (n.type === 'epic' && n.id !== filterEpic) show = false;
-      if (n.type === 'task' && n.parentId !== filterEpic) show = false;
-      if (n.type === 'subtask') {
-        const parent = _graphNodeMap[n.parentId];
-        if (!parent || parent.parentId !== filterEpic) show = false;
-      }
-    }
-    const g = svg.querySelector(`g[data-node-id="${n.id}"]`);
-    if (g) g.style.display = show ? '' : 'none';
-    if (show) visibleIds.add(n.id);
-  });
-
-  // Hide edges where either end is hidden
-  svg.querySelectorAll('.edge-hierarchy, .edge-dep').forEach(path => {
-    const show = visibleIds.has(path.dataset.sourceId) && visibleIds.has(path.dataset.targetId);
-    path.style.display = show ? '' : 'none';
+  epicNodes.forEach(epic => {
+    const li = renderNode(epic, 0);
+    if (li) root.appendChild(li);
   });
 }
 
-// ── Zoom/fit controls ──
-function graphZoom(factor) {
-  const svg = document.getElementById('graph-svg');
-  if (!graphViewBox) return;
-  const cx = graphViewBox.x + graphViewBox.w / 2;
-  const cy = graphViewBox.y + graphViewBox.h / 2;
-  graphViewBox.w *= factor;
-  graphViewBox.h *= factor;
-  graphViewBox.x = cx - graphViewBox.w / 2;
-  graphViewBox.y = cy - graphViewBox.h / 2;
-  svg.setAttribute('viewBox', `${graphViewBox.x} ${graphViewBox.y} ${graphViewBox.w} ${graphViewBox.h}`);
-}
-
-function graphFitToView() {
-  const svg = document.getElementById('graph-svg');
-  if (!_graphNodes.length) return;
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  _graphNodes.forEach(n => {
-    const g = svg.querySelector(`g[data-node-id="${n.id}"]`);
-    if (g && g.style.display !== 'none') {
-      minX = Math.min(minX, n.x);
-      minY = Math.min(minY, n.y);
-      maxX = Math.max(maxX, n.x + n.w);
-      maxY = Math.max(maxY, n.y + n.h);
-    }
-  });
-  if (minX === Infinity) return;
-  const pad = 60;
-  graphViewBox = { x: minX - pad, y: minY - pad, w: maxX - minX + pad * 2, h: maxY - minY + pad * 2 };
-  svg.setAttribute('viewBox', `${graphViewBox.x} ${graphViewBox.y} ${graphViewBox.w} ${graphViewBox.h}`);
-}
-
-function graphReset() {
-  _nodePositionCache = {};
-  document.getElementById('filter-status').value = 'not_done';
-  document.getElementById('filter-type').value = '';
-  document.getElementById('filter-epic').value = '';
-  renderGraph();
-  applyGraphFilters();
-}
-
-// ── Smart graph data refresh ──
 function refreshGraphData() {
-  // Cache current positions before refresh
-  _graphNodes.forEach(n => {
-    _nodePositionCache[n.id] = { x: n.x, y: n.y, userPlaced: !!n._userPlaced };
-  });
-  // Re-render will restore _userPlaced positions from cache
-  const savedVB = graphViewBox ? { ...graphViewBox } : null;
-  renderGraph();
-  if (savedVB) {
-    graphViewBox = savedVB;
-    const svg = document.getElementById('graph-svg');
-    svg.setAttribute('viewBox', `${savedVB.x} ${savedVB.y} ${savedVB.w} ${savedVB.h}`);
-  }
-  applyGraphFilters();
+  renderTree();
 }
 
 // ── Drawer ──
@@ -1265,10 +729,11 @@ function switchTab(viewName) {
   if (tab) tab.classList.add('active');
   document.getElementById(viewName + '-view').classList.add('active');
   sessionStorage.setItem('werk-active-tab', viewName);
-  if (viewName === 'graph') { renderGraph(); applyGraphFilters(); }
+  if (viewName === 'graph') { renderTree(); }
   if (viewName === 'epics') renderEpics();
   if (viewName === 'board') renderBoard();
   if (viewName === 'decisions') renderDecisions();
+  if (viewName === 'sessions') renderSessions();
 }
 
 document.querySelectorAll('.tab').forEach(tab => {
@@ -1282,6 +747,39 @@ function esc(s) {
   const d = document.createElement('div');
   d.textContent = s;
   return d.innerHTML;
+}
+
+// ── Sessions ──
+
+function renderSessions() {
+  const el = document.getElementById('sessions-list');
+  if (!sessions.length) { el.innerHTML = '<div style="color:var(--text-muted);padding:24px;">No sessions yet.</div>'; return; }
+  let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+  html += '<tr style="border-bottom:1px solid var(--border);color:var(--text-muted);font-size:11px;text-transform:uppercase;"><th style="padding:8px;text-align:left;">ID</th><th style="padding:8px;text-align:left;">Started</th><th style="padding:8px;text-align:left;">Ended</th><th style="padding:8px;text-align:left;">Summary</th><th style="padding:8px;text-align:right;">Tasks</th></tr>';
+  sessions.forEach(s => {
+    let touched = [];
+    try { touched = JSON.parse(s.tasks_touched || '[]'); } catch(e) { touched = s.tasks_touched || []; }
+    const summary = s.summary ? esc(s.summary) : '<span style="color:var(--text-muted)">—</span>';
+    const ended = s.ended_at || '<span style="color:var(--yellow)">active</span>';
+    html += `<tr style="border-bottom:1px solid var(--border);"><td style="padding:8px;font-family:monospace;font-size:11px;">${esc(s.id)}</td><td style="padding:8px;">${esc(s.started_at)}</td><td style="padding:8px;">${ended}</td><td style="padding:8px;">${summary}</td><td style="padding:8px;text-align:right;">${touched.length}</td></tr>`;
+  });
+  html += '</table>';
+  el.innerHTML = html;
+}
+
+// ── Search ──
+
+function applySearch() {
+  searchQuery = (document.getElementById('search-input').value || '').toLowerCase();
+  const cards = document.querySelectorAll('.card, .epic-card, .decision-card, tr[data-searchable]');
+  if (!searchQuery) {
+    cards.forEach(c => c.style.display = '');
+    return;
+  }
+  cards.forEach(c => {
+    const text = (c.textContent || '').toLowerCase();
+    c.style.display = text.includes(searchQuery) ? '' : 'none';
+  });
 }
 
 // ── Init ──

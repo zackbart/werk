@@ -12,26 +12,39 @@ type Task struct {
 	Status    string     `json:"status"`
 	Priority  int        `json:"priority"`
 	Notes     *string    `json:"notes"`
+	Archived  bool       `json:"archived"`
 	Blockers  []string   `json:"blockers,omitempty"`
+	Links     []string   `json:"links,omitempty"`
 	CreatedAt time.Time  `json:"created_at"`
+	StartedAt *time.Time `json:"started_at"`
 	UpdatedAt *time.Time `json:"updated_at"`
 	ClosedAt  *time.Time `json:"closed_at"`
 }
 
 type TaskJSON struct {
-	ID        string     `json:"id"`
-	Ref       string     `json:"ref"`
-	ParentID  *string    `json:"parent_id"`
-	ParentRef *string    `json:"parent_ref"`
-	Type      string     `json:"type"`
-	Title     string     `json:"title"`
-	Status    string     `json:"status"`
-	Priority  int        `json:"priority"`
-	Blockers  []string   `json:"blockers"`
-	Notes     *string    `json:"notes"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt *time.Time `json:"updated_at"`
-	ClosedAt  *time.Time `json:"closed_at"`
+	ID               string           `json:"id"`
+	Ref              string           `json:"ref"`
+	ParentID         *string          `json:"parent_id"`
+	ParentRef        *string          `json:"parent_ref"`
+	Type             string           `json:"type"`
+	Title            string           `json:"title"`
+	Status           string           `json:"status"`
+	Priority         int              `json:"priority"`
+	Archived         bool             `json:"archived"`
+	Blockers         []string         `json:"blockers"`
+	Links            []string         `json:"links"`
+	Notes            *string          `json:"notes"`
+	SubtaskProgress  *SubtaskProgress `json:"subtask_progress,omitempty"`
+	CreatedAt        time.Time        `json:"created_at"`
+	StartedAt        *time.Time       `json:"started_at,omitempty"`
+	UpdatedAt        *time.Time       `json:"updated_at"`
+	ClosedAt         *time.Time       `json:"closed_at"`
+}
+
+type SubtaskProgress struct {
+	Open  int `json:"open"`
+	Done  int `json:"done"`
+	Total int `json:"total"`
 }
 
 func (t Task) ToJSON() TaskJSON {
@@ -44,14 +57,20 @@ func (t Task) ToJSON() TaskJSON {
 		Title:     t.Title,
 		Status:    t.Status,
 		Priority:  t.Priority,
+		Archived:  t.Archived,
 		Notes:     t.Notes,
 		Blockers:  t.Blockers,
+		Links:     t.Links,
+		StartedAt: t.StartedAt,
 		CreatedAt: t.CreatedAt,
 		UpdatedAt: t.UpdatedAt,
 		ClosedAt:  t.ClosedAt,
 	}
 	if j.Blockers == nil {
 		j.Blockers = []string{}
+	}
+	if j.Links == nil {
+		j.Links = []string{}
 	}
 	return j
 }
@@ -122,10 +141,36 @@ type CompactHandoff struct {
 }
 
 type StatusSummary struct {
-	Open       int `json:"open"`
-	InProgress int `json:"in_progress"`
-	Blocked    int `json:"blocked"`
-	Done       int `json:"done"`
-	Decisions  int `json:"decisions"`
-	Sessions   int `json:"sessions"`
+	Open            int     `json:"open"`
+	InProgress      int     `json:"in_progress"`
+	Blocked         int     `json:"blocked"`
+	Done            int     `json:"done"`
+	Decisions       int     `json:"decisions"`
+	Sessions        int     `json:"sessions"`
+	ActiveSessionID *string `json:"active_session_id,omitempty"`
+}
+
+type ExportPayload struct {
+	SchemaVersion int           `json:"schema_version"`
+	ExportedAt    time.Time     `json:"exported_at"`
+	Tasks         []TaskExport  `json:"tasks"`
+	Dependencies  []Dependency  `json:"dependencies"`
+	Decisions     []Decision    `json:"decisions"`
+	Sessions      []Session     `json:"sessions"`
+	Audit         []AuditEntry  `json:"audit"`
+}
+
+type TaskExport struct {
+	ID        string     `json:"id"`
+	Ref       string     `json:"ref"`
+	ParentID  *string    `json:"parent_id"`
+	Type      string     `json:"type"`
+	Title     string     `json:"title"`
+	Status    string     `json:"status"`
+	Priority  int        `json:"priority"`
+	Notes     *string    `json:"notes"`
+	Archived  bool       `json:"archived"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt *time.Time `json:"updated_at"`
+	ClosedAt  *time.Time `json:"closed_at"`
 }

@@ -23,6 +23,9 @@ func newStatusCmd() *cobra.Command {
 				fmt.Printf("Done:        %d\n", s.Done)
 				fmt.Printf("Decisions:   %d\n", s.Decisions)
 				fmt.Printf("Sessions:    %d\n", s.Sessions)
+				if s.ActiveSessionID != nil {
+					fmt.Printf("Active:      %s\n", *s.ActiveSessionID)
+				}
 			} else {
 				outputJSON(s)
 			}

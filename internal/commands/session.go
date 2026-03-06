@@ -48,10 +48,24 @@ func newSessionCmd() *cobra.Command {
 				return nil
 			}
 
-			outputJSON(s)
+			withContext, _ := cmd.Flags().GetBool("with-context")
+			if withContext {
+				log, _ := database.GetLog(20, false)
+				ready, _ := database.ReadyTasks()
+				inProgress, _ := database.ListTasks("task", nil, "in_progress")
+				outputJSON(map[string]interface{}{
+					"session":     s,
+					"log":         log,
+					"ready":       toTaskJSONList(ready),
+					"in_progress": toTaskJSONList(inProgress),
+				})
+			} else {
+				outputJSON(s)
+			}
 			return nil
 		},
 	}
+	startCmd.Flags().Bool("with-context", false, "include log, ready, and in-progress tasks")
 
 	endCmd := &cobra.Command{
 		Use:   "end",
@@ -68,6 +82,12 @@ func newSessionCmd() *cobra.Command {
 			var summaryPtr *string
 			if cmd.Flags().Changed("summary") {
 				summaryPtr = &summary
+			} else {
+				// Auto-generate summary from audit trail
+				autoSummary, err := database.GenerateAutoSummary(sessionID)
+				if err == nil && autoSummary != "" {
+					summaryPtr = &autoSummary
+				}
 			}
 
 			s, err := database.EndSession(sessionID, summaryPtr)
