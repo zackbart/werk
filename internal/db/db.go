@@ -192,14 +192,19 @@ func (d *DB) GetTaskByRef(ref string) (*models.Task, error) {
 }
 
 func (d *DB) ResolveTaskID(idOrRef string) (string, error) {
-	if _, err := d.GetTask(idOrRef); err == nil {
+	var exists int
+	if err := d.conn.QueryRow(`SELECT 1 FROM tasks WHERE id = ? LIMIT 1`, idOrRef).Scan(&exists); err == nil {
 		return idOrRef, nil
 	}
-	t, err := d.GetTaskByRef(idOrRef)
+	var id string
+	err := d.conn.QueryRow(`SELECT id FROM tasks WHERE ref = ?`, idOrRef).Scan(&id)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", fmt.Errorf("task not found: %s", idOrRef)
+		}
 		return "", err
 	}
-	return t.ID, nil
+	return id, nil
 }
 
 func (d *DB) ResolveTaskRef(idOrRef string) (string, error) {

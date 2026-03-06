@@ -24,6 +24,6 @@ func newHandoffCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().Bool("compact", false, "emit compact machine-friendly packet")
+	cmd.Flags().Bool("compact", true, "emit compact machine-friendly packet")
 	return cmd
 }

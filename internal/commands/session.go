@@ -153,6 +153,9 @@ func recoverSessionLock(d *db.DB, lockPath string) (map[string]interface{}, erro
 
 	s, err := d.GetSession(sessionID)
 	if err != nil {
+		if !strings.Contains(err.Error(), "not found") {
+			return nil, fmt.Errorf("failed to query session: %w", err)
+		}
 		if err := os.Remove(lockPath); err != nil && !os.IsNotExist(err) {
 			return nil, fmt.Errorf("failed to remove stale lockfile: %w", err)
 		}

@@ -41,10 +41,11 @@ func Start(db *sql.DB, port int) error {
 
 	mux.HandleFunc("/api/tasks", func(w http.ResponseWriter, r *http.Request) {
 		status := r.URL.Query().Get("status")
-		epicID := r.URL.Query().Get("epic")
+		epicIDOrRef := r.URL.Query().Get("epic")
 		query := "SELECT id, ref, parent_id, (SELECT ref FROM tasks p WHERE p.id = t.parent_id), type, title, status, priority, notes, created_at, updated_at, closed_at FROM tasks t WHERE type = 'task'"
 		args := []interface{}{}
-		if epicID != "" {
+		if epicIDOrRef != "" {
+			epicID := resolveTaskIDFromDB(db, epicIDOrRef)
 			query += " AND parent_id = ?"
 			args = append(args, epicID)
 		}
@@ -98,11 +99,12 @@ func Start(db *sql.DB, port int) error {
 	})
 
 	mux.HandleFunc("/api/audit/", func(w http.ResponseWriter, r *http.Request) {
-		taskID := strings.TrimPrefix(r.URL.Path, "/api/audit/")
-		if taskID == "" {
+		idOrRef := strings.TrimPrefix(r.URL.Path, "/api/audit/")
+		if idOrRef == "" {
 			http.Error(w, `{"error":"task ID required"}`, 400)
 			return
 		}
+		taskID := resolveTaskIDFromDB(db, idOrRef)
 		rows, err := db.Query("SELECT id, task_id, field, old_value, new_value, changed_at, changed_by FROM audit WHERE task_id = ? ORDER BY changed_at ASC, id ASC", taskID)
 		if err != nil {
 			writeJSON(w, []interface{}{})
@@ -181,6 +183,21 @@ func Start(db *sql.DB, port int) error {
 func writeJSON(w http.ResponseWriter, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(v)
+}
+
+// resolveTaskIDFromDB resolves an id-or-ref to an internal ID using the DB directly.
+func resolveTaskIDFromDB(db *sql.DB, idOrRef string) string {
+	// Try as ID first
+	var exists int
+	if err := db.QueryRow(`SELECT 1 FROM tasks WHERE id = ?`, idOrRef).Scan(&exists); err == nil {
+		return idOrRef
+	}
+	// Try as ref
+	var id string
+	if err := db.QueryRow(`SELECT id FROM tasks WHERE ref = ?`, idOrRef).Scan(&id); err == nil {
+		return id
+	}
+	return idOrRef
 }
 
 func queryTasks(db *sql.DB, taskType, status string) []map[string]interface{} {

@@ -46,15 +46,8 @@ func newEpicCmd() *cobra.Command {
 				outputError(err.Error())
 				return nil
 			}
-			var out []interface{}
-			for _, t := range tasks {
-				out = append(out, t.ToJSON())
-			}
-			if out == nil {
-				outputJSON([]interface{}{})
-			} else {
-				outputJSON(out)
-			}
+			out := toTaskJSONList(tasks)
+			outputJSON(out)
 			return nil
 		},
 	}

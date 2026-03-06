@@ -2,6 +2,8 @@ package commands
 
 import (
 	"github.com/spf13/cobra"
+
+	"werk/internal/models"
 )
 
 func newAuditCmd() *cobra.Command {
@@ -18,15 +20,14 @@ func newAuditCmd() *cobra.Command {
 				return nil
 			}
 			if entries == nil {
-				outputJSON([]interface{}{})
-			} else {
-				out := map[string]interface{}{
-					"id":      id,
-					"ref":     ref,
-					"entries": entries,
-				}
-				outputJSON(out)
+				entries = []models.AuditEntry{}
 			}
+			out := map[string]interface{}{
+				"id":      id,
+				"ref":     ref,
+				"entries": entries,
+			}
+			outputJSON(out)
 			return nil
 		},
 	}
