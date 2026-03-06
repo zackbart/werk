@@ -16,7 +16,7 @@ func newLogCmd() *cobra.Command {
 
 			entries, err := database.GetLog(limit, verbose)
 			if err != nil {
-				outputError(err.Error())
+				outputErr(err)
 				return nil
 			}
 

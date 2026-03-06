@@ -23,7 +23,7 @@ func newDecisionCmd() *cobra.Command {
 
 			dec, err := database.CreateDecision(args[0], ratPtr, changedBy())
 			if err != nil {
-				outputError(err.Error())
+				outputErr(err)
 				return nil
 			}
 			outputJSON(dec)
@@ -38,7 +38,7 @@ func newDecisionCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			decs, err := database.ListDecisions()
 			if err != nil {
-				outputError(err.Error())
+				outputErr(err)
 				return nil
 			}
 			if decs == nil {
@@ -57,7 +57,7 @@ func newDecisionCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dec, err := database.GetDecision(args[0])
 			if err != nil {
-				outputError(err.Error())
+				outputErr(err)
 				return nil
 			}
 			outputJSON(dec)

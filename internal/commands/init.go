@@ -16,13 +16,13 @@ func newInitCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := getDBPath()
 			if _, err := os.Stat(path); err == nil {
-				outputError("werk is already initialized (database exists)")
+				outputErrorCode("INVALID_STATE", "werk is already initialized (database exists)")
 				return nil
 			}
 
 			d, err := db.Open(path)
 			if err != nil {
-				outputError(fmt.Sprintf("failed to initialize: %v", err))
+				outputErrorCode("INIT_FAILED", fmt.Sprintf("failed to initialize: %v", err))
 				return nil
 			}
 			d.Close()

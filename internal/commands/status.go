@@ -13,7 +13,7 @@ func newStatusCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := database.GetStatus()
 			if err != nil {
-				outputError(fmt.Sprintf("failed to get status: %v", err))
+				outputErrorCode("STATUS_FAILED", fmt.Sprintf("failed to get status: %v", err))
 				return nil
 			}
 			if pretty {

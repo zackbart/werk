@@ -17,7 +17,7 @@ var (
 	pretty    bool
 	agentMode bool
 	database  *db.DB
-	version   = "0.1.0"
+	version   = "0.2.0"
 )
 
 func changedBy() string {
@@ -38,8 +38,27 @@ func outputJSON(v interface{}) {
 }
 
 func outputError(msg string) {
-	outputJSON(map[string]string{"error": msg})
+	outputJSON(map[string]string{
+		"code":    "ERROR",
+		"message": msg,
+	})
 	os.Exit(1)
+}
+
+func outputErrorCode(code, msg string) {
+	outputJSON(map[string]string{
+		"code":    code,
+		"message": msg,
+	})
+	os.Exit(1)
+}
+
+func outputErr(err error) {
+	if ce := db.AsCodedError(err); ce != nil {
+		outputErrorCode(ce.Code, ce.Message)
+		return
+	}
+	outputErrorCode("ERROR", err.Error())
 }
 
 func prettyTable(headers []string, rows [][]string) {
@@ -96,8 +115,16 @@ func openDB() {
 	var err error
 	database, err = db.Open(getDBPath())
 	if err != nil {
-		outputError(fmt.Sprintf("failed to open database: %v", err))
+		outputErrorCode("DB_OPEN_FAILED", fmt.Sprintf("failed to open database: %v", err))
 	}
+}
+
+func resolveTaskIDOrExit(idOrRef string) string {
+	id, err := database.ResolveTaskID(idOrRef)
+	if err != nil {
+		outputErr(err)
+	}
+	return id
 }
 
 func NewRootCmd() *cobra.Command {
@@ -134,6 +161,7 @@ func NewRootCmd() *cobra.Command {
 		newDecisionCmd(),
 		newSessionCmd(),
 		newAuditCmd(),
+		newHandoffCmd(),
 		newLogCmd(),
 		newServeCmd(),
 	)
