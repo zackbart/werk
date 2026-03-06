@@ -9,7 +9,7 @@ compatibility: Requires the werk binary in PATH. Run werk init to set up.
 allowed-tools: Bash(werk:*)
 metadata:
   author: werk
-  version: "0.2.1"
+  version: "0.2.2"
 ---
 
 # Task Tracking
@@ -36,10 +36,11 @@ werk init
 
 This creates `.werk/tasks.db`. All commands automatically walk up the directory tree to find it, so `werk` works from any subdirectory — just like `git`.
 
+Running `werk init` on an existing project is safe — it upgrades the database schema, fixes `.gitignore` patterns, and registers the workspace. Returns `{"status": "upgraded"}`.
+
 **Post-init checks:**
 
-1. Verify `.werk/.gitignore` uses correct relative patterns (`*.db-wal`, `*.db-shm`, `session.lock`) — not `.werk/`-prefixed paths. Versions <= 0.1.1 generated broken patterns; if you see `.werk/*.db-wal`, fix them.
-2. Check if any ancestor `.gitignore` has a `*.db` rule (common in Dolt/beads, Rails, and other projects). If so, add `!.werk/tasks.db` to the root `.gitignore` so the database is tracked by git.
+1. Check if any ancestor `.gitignore` has a `*.db` rule (common in Dolt/beads, Rails, and other projects). If so, add `!.werk/tasks.db` to the root `.gitignore` so the database is tracked by git.
 
 ---
 

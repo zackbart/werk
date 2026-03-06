@@ -13,12 +13,12 @@ import (
 func newInitCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "init",
-		Short: "Initialize .werk/tasks.db in current directory",
+		Short: "Initialize or upgrade .werk/tasks.db in current directory",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := getDBPath()
+			existing := false
 			if _, err := os.Stat(path); err == nil {
-				outputError("werk is already initialized (database exists)")
-				return nil
+				existing = true
 			}
 
 			d, err := db.Open(path)
@@ -28,9 +28,11 @@ func newInitCmd() *cobra.Command {
 			}
 			d.Close()
 
-			// Create .gitignore in .werk/
+			// Write/fix .gitignore in .werk/ (fixes broken patterns from <= 0.1.1)
+			werkDir := filepath.Dir(path)
+			gitignorePath := filepath.Join(werkDir, ".gitignore")
 			gitignore := "*.db-wal\n*.db-shm\nsession.lock\nserve.pid\n"
-			os.WriteFile(".werk/.gitignore", []byte(gitignore), 0644)
+			os.WriteFile(gitignorePath, []byte(gitignore), 0644)
 
 			// Auto-register workspace
 			if cwd, err := os.Getwd(); err == nil {
@@ -42,7 +44,11 @@ func newInitCmd() *cobra.Command {
 				}
 			}
 
-			outputJSON(map[string]string{"status": "initialized", "path": path})
+			if existing {
+				outputJSON(map[string]string{"status": "upgraded", "path": path})
+			} else {
+				outputJSON(map[string]string{"status": "initialized", "path": path})
+			}
 			return nil
 		},
 	}

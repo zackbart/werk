@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.2 — 2026-03-06
+
+### Improvements
+
+- **`werk init` now upgrades existing databases** — Running `init` on an already-initialized project runs migrations, fixes `.gitignore` patterns (broken in <= 0.1.1), and registers the workspace. Returns `{"status": "upgraded"}` instead of erroring out.
+
+---
+
 ## v0.2.1 — 2026-03-06
 
 ### New commands

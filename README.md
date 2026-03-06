@@ -80,7 +80,7 @@ Epics have no parent. Tasks must belong to an epic. Subtasks must belong to a ta
 ## Commands
 
 ```
-werk init                              Initialize .werk/tasks.db
+werk init                              Initialize or upgrade .werk/tasks.db
 werk status                            Project summary
 
 werk epic create|list|show|update|close|delete
@@ -208,11 +208,12 @@ werk handoff 1.1 --compact
 
 The packet includes the item identity/core metadata, dependencies/blockers, children, recent decisions, and recent audit context.
 
-## Migration notes (v0.2)
+## Migration notes (v0.2+)
 
-- Existing databases are migrated in place with a new `ref` field.
-- Missing refs on older rows are backfilled once from current hierarchy.
+- Run `werk init` on existing projects to upgrade the schema in place.
+- Missing refs on older rows are backfilled automatically from current hierarchy.
 - Hash IDs remain the internal primary key; refs are additive and stable.
+- `.gitignore` patterns are corrected automatically on upgrade.
 
 ## Design
 
