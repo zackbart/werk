@@ -215,6 +215,19 @@ The packet includes the item identity/core metadata, dependencies/blockers, chil
 - Hash IDs remain the internal primary key; refs are additive and stable.
 - `.gitignore` patterns are corrected automatically on upgrade.
 
+## Worktrees and snapshots
+
+**Git worktrees:** Werk automatically discovers the main worktree's `.werk/tasks.db` when you're working in a linked worktree (e.g. `git worktree add`). No configuration needed — it uses `git rev-parse --git-common-dir` as a fallback after the normal walk-up search.
+
+**Snapshots:** Commit a snapshot so fresh clones start with task history:
+
+```bash
+werk export > .werk/snapshot.json
+git add .werk/snapshot.json && git commit -m "Update werk snapshot"
+```
+
+On `werk init` in a fresh clone, the snapshot is automatically imported. The binary `tasks.db` stays gitignored; the JSON snapshot is the portable, committable representation.
+
 ## Design
 
 - **Local-first** — everything lives in `.werk/tasks.db`. No network, no accounts, no sync.

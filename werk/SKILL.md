@@ -34,7 +34,9 @@ Initialize at the repo root (or monorepo root):
 werk init
 ```
 
-This creates `.werk/tasks.db`. All commands automatically walk up the directory tree to find it, so `werk` works from any subdirectory — just like `git`.
+This creates `.werk/tasks.db`. All commands automatically walk up the directory tree to find it, so `werk` works from any subdirectory — just like `git`. In git worktrees, `werk` also checks the main worktree's `.werk/` as a fallback.
+
+If `.werk/snapshot.json` exists at init time, it is automatically imported — restoring task history from a committed snapshot.
 
 Running `werk init` on an existing project is safe — it upgrades the database schema, fixes `.gitignore` patterns, and registers the workspace. Returns `{"status": "upgraded"}`.
 
@@ -332,6 +334,21 @@ werk import backup.json
 ```
 
 Export produces a complete JSON snapshot. Import uses `INSERT OR IGNORE` so it's safe for merging.
+
+---
+
+## Snapshot workflow
+
+Commit a snapshot so fresh clones inherit task history:
+
+```
+werk export > .werk/snapshot.json
+git add .werk/snapshot.json && git commit -m "Update werk snapshot"
+```
+
+On `werk init` in a fresh clone, the snapshot is automatically imported. Returns `{"status": "initialized", "snapshot": "restored"}`.
+
+The binary `tasks.db` stays gitignored. The JSON snapshot is the portable, committable representation. Update it periodically (e.g. before merging feature branches).
 
 ---
 

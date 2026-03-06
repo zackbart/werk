@@ -5,6 +5,8 @@
 ### Improvements
 
 - **`werk init` now upgrades existing databases** — Running `init` on an already-initialized project runs migrations, fixes `.gitignore` patterns (broken in <= 0.1.1), and registers the workspace. Returns `{"status": "upgraded"}` instead of erroring out.
+- **Worktree-aware DB discovery** — When `.werk/tasks.db` isn't found by walking up, `werk` uses `git rev-parse --git-common-dir` to locate the main worktree's database. Works transparently in git worktrees that live outside the repo tree.
+- **Snapshot restore on init** — If `.werk/snapshot.json` exists when running `werk init` on a fresh project, the snapshot is automatically imported. Commit snapshots via `werk export > .werk/snapshot.json` to preserve task history across fresh clones.
 
 ---
 

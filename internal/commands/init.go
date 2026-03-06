@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"werk/internal/db"
+	"werk/internal/models"
 )
 
 func newInitCmd() *cobra.Command {
@@ -26,7 +28,7 @@ func newInitCmd() *cobra.Command {
 				outputError(fmt.Sprintf("failed to initialize: %v", err))
 				return nil
 			}
-			d.Close()
+			defer d.Close()
 
 			// Write/fix .gitignore in .werk/ (fixes broken patterns from <= 0.1.1)
 			werkDir := filepath.Dir(path)
@@ -44,8 +46,24 @@ func newInitCmd() *cobra.Command {
 				}
 			}
 
+			// Restore from snapshot if this is a fresh init
+			snapshotRestored := false
+			if !existing {
+				snapshotPath := filepath.Join(werkDir, "snapshot.json")
+				if data, err := os.ReadFile(snapshotPath); err == nil {
+					var payload models.ExportPayload
+					if err := json.Unmarshal(data, &payload); err == nil && payload.SchemaVersion == 1 {
+						if err := d.ImportAll(&payload); err == nil {
+							snapshotRestored = true
+						}
+					}
+				}
+			}
+
 			if existing {
 				outputJSON(map[string]string{"status": "upgraded", "path": path})
+			} else if snapshotRestored {
+				outputJSON(map[string]string{"status": "initialized", "snapshot": "restored", "path": path})
 			} else {
 				outputJSON(map[string]string{"status": "initialized", "path": path})
 			}

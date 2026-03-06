@@ -1,12 +1,8 @@
 # Binary
 werk-bin
 
-# Werk data
-.werk/*.db-wal
-.werk/*.db-shm
-.werk/session.lock
-.werk/serve.pid
-.werk/tasks.db
+# Werk data (the .werk/.gitignore handles WAL/SHM/lock/pid files)
+tasks.db
 
 # Go
 *.exe

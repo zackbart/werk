@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
@@ -122,10 +123,11 @@ func getDBPath() string {
 		return filepath.Join(env, ".werk", "tasks.db")
 	}
 	// 6. Walk up directory tree to find .werk/tasks.db
-	dir, err := os.Getwd()
+	startDir, err := os.Getwd()
 	if err != nil {
 		return ".werk/tasks.db"
 	}
+	dir := startDir
 	for {
 		candidate := filepath.Join(dir, ".werk", "tasks.db")
 		if _, err := os.Stat(candidate); err == nil {
@@ -136,6 +138,19 @@ func getDBPath() string {
 			break // reached filesystem root
 		}
 		dir = parent
+	}
+	// 7. Git worktree fallback — find the main worktree's DB
+	if out, err := exec.Command("git", "rev-parse", "--git-common-dir").Output(); err == nil {
+		gitCommonDir := strings.TrimSpace(string(out))
+		if !filepath.IsAbs(gitCommonDir) {
+			gitCommonDir = filepath.Join(startDir, gitCommonDir)
+		}
+		gitCommonDir = filepath.Clean(gitCommonDir)
+		mainWorktree := filepath.Dir(gitCommonDir)
+		candidate := filepath.Join(mainWorktree, ".werk", "tasks.db")
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
 	}
 	// Not found — default to cwd (for init)
 	return ".werk/tasks.db"
