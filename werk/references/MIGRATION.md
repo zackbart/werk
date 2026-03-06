@@ -249,16 +249,12 @@ serve.pid
 
 If you see `.werk/`-prefixed patterns, fix them manually. Versions after 0.1.1 generate the correct patterns.
 
-### Root `.gitignore` may exclude `tasks.db`
+### Root `.gitignore` should ignore `.werk/`
 
-Many projects — especially those using Dolt, Beads, Rails, or other database-backed tools — have `*.db` in their root `.gitignore`. This silently excludes `.werk/tasks.db` from git.
+The `.werk/` directory — including `tasks.db` — should be gitignored. The binary database is not committed; use the [snapshot workflow](../SKILL.md#snapshot-workflow) (`werk export > .werk/snapshot.json`) to commit a portable JSON representation instead.
 
-After `werk init`, check for this and add an exception if needed:
+`werk init` adds `.werk/` to your root `.gitignore` automatically. If it's missing:
 
 ```bash
-# Check if tasks.db would be ignored
-git check-ignore .werk/tasks.db
-
-# If it is ignored, add an exception to the root .gitignore
-echo '!.werk/tasks.db' >> .gitignore
+echo '.werk/' >> .gitignore
 ```

@@ -44,22 +44,13 @@ Use `--name <name>` to override the werkspace name (default: directory basename)
 
 **Gitignore setup:**
 
-`werk init` auto-creates `.werk/.gitignore` with WAL/SHM/lock/pid exclusions. The `.werk/` directory itself — including `tasks.db` and `snapshot.json` — should be committed. Your root `.gitignore` should **not** ignore `.werk/`.
+The `.werk/` directory should be ignored in your root `.gitignore`. The binary `tasks.db` is not committed — the JSON snapshot is the portable, committable representation (see [Snapshot workflow](#snapshot-workflow)).
 
-If your project has a `*.db` rule in any ancestor `.gitignore` (common in Rails, Dolt, etc.), add an exception so the database is tracked:
+`werk init` adds `.werk/` to your root `.gitignore` automatically. If you need to set it up manually:
 
 ```
 # .gitignore (root)
-!.werk/tasks.db
-```
-
-The `.werk/.gitignore` created by init contains:
-
-```
-*.db-wal
-*.db-shm
-session.lock
-serve.pid
+.werk/
 ```
 
 ---

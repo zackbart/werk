@@ -416,8 +416,9 @@ Read-only in v1. No writes from the UI.
 
 - Default: `.werk/tasks.db` relative to current working directory
 - Override: `--db <path>` flag or `WERK_DB` env var
-- The `.werk/` directory should be committed to the repo
-- Add to `.gitignore`: `.werk/*.db-wal` and `.werk/*.db-shm`
+- The `.werk/` directory should be gitignored — the binary `tasks.db` is not committed
+- Use `werk export > .werk/snapshot.json` to commit a portable JSON snapshot instead
+- On `werk init` in a fresh clone, the snapshot is automatically imported
 
 ---
 
