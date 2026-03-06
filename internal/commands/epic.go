@@ -62,11 +62,12 @@ func newEpicCmd() *cobra.Command {
 
 	// show
 	showCmd := &cobra.Command{
-		Use:   "show <id>",
+		Use:   "show <id-or-ref>",
 		Short: "Show epic details",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			t, err := database.GetTask(args[0])
+			id := mustResolveID(args[0])
+			t, err := database.GetTask(id)
 			if err != nil {
 				outputError(err.Error())
 				return nil
@@ -78,7 +79,7 @@ func newEpicCmd() *cobra.Command {
 
 	// update
 	updateCmd := &cobra.Command{
-		Use:   "update <id>",
+		Use:   "update <id-or-ref>",
 		Short: "Update an epic",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -99,7 +100,8 @@ func newEpicCmd() *cobra.Command {
 				priPtr = &v
 			}
 
-			t, err := database.UpdateTask(args[0], titlePtr, notesPtr, priPtr, changedBy())
+			id := mustResolveID(args[0])
+			t, err := database.UpdateTask(id, titlePtr, notesPtr, priPtr, changedBy())
 			if err != nil {
 				outputError(err.Error())
 				return nil
@@ -114,11 +116,12 @@ func newEpicCmd() *cobra.Command {
 
 	// close
 	closeCmd := &cobra.Command{
-		Use:   "close <id>",
+		Use:   "close <id-or-ref>",
 		Short: "Close an epic",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			t, err := database.SetTaskStatus(args[0], "done", changedBy())
+			id := mustResolveID(args[0])
+			t, err := database.SetTaskStatus(id, "done", changedBy())
 			if err != nil {
 				outputError(err.Error())
 				return nil
@@ -130,17 +133,19 @@ func newEpicCmd() *cobra.Command {
 
 	// delete
 	deleteCmd := &cobra.Command{
-		Use:   "delete <id>",
+		Use:   "delete <id-or-ref>",
 		Short: "Permanently delete an epic",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			force, _ := cmd.Flags().GetBool("force")
-			err := database.DeleteTask(args[0], force, changedBy())
+			id := mustResolveID(args[0])
+			ref, _ := resolveRef(id)
+			err := database.DeleteTask(id, force, changedBy())
 			if err != nil {
 				outputError(err.Error())
 				return nil
 			}
-			outputJSON(map[string]string{"status": "deleted", "id": args[0]})
+			outputJSON(map[string]string{"status": "deleted", "id": id, "ref": ref})
 			return nil
 		},
 	}

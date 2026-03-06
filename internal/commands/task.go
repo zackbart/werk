@@ -16,11 +16,12 @@ func newTaskCmd() *cobra.Command {
 		Short: "Create a new task",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			epicID, _ := cmd.Flags().GetString("epic")
-			if epicID == "" {
+			epicIDOrRef, _ := cmd.Flags().GetString("epic")
+			if epicIDOrRef == "" {
 				outputError("--epic is required")
 				return nil
 			}
+			epicID := mustResolveID(epicIDOrRef)
 			priority, _ := cmd.Flags().GetInt("priority")
 			notes, _ := cmd.Flags().GetString("notes")
 			var notesPtr *string
@@ -37,7 +38,7 @@ func newTaskCmd() *cobra.Command {
 			return nil
 		},
 	}
-	createCmd.Flags().String("epic", "", "parent epic ID (required)")
+	createCmd.Flags().String("epic", "", "parent epic <id-or-ref> (required)")
 	createCmd.Flags().Int("priority", 2, "priority (0-4)")
 	createCmd.Flags().String("notes", "", "notes")
 
@@ -47,9 +48,10 @@ func newTaskCmd() *cobra.Command {
 		Short: "List tasks",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			status, _ := cmd.Flags().GetString("status")
-			epicID, _ := cmd.Flags().GetString("epic")
+			epicIDOrRef, _ := cmd.Flags().GetString("epic")
 			var parentPtr *string
-			if epicID != "" {
+			if epicIDOrRef != "" {
+				epicID := mustResolveID(epicIDOrRef)
 				parentPtr = &epicID
 			}
 			tasks, err := database.ListTasks("task", parentPtr, status)
@@ -57,10 +59,7 @@ func newTaskCmd() *cobra.Command {
 				outputError(err.Error())
 				return nil
 			}
-			var out []interface{}
-			for _, t := range tasks {
-				out = append(out, t.ToJSON())
-			}
+			out := toTaskJSONList(tasks)
 			if out == nil {
 				outputJSON([]interface{}{})
 			} else {
@@ -70,15 +69,16 @@ func newTaskCmd() *cobra.Command {
 		},
 	}
 	listCmd.Flags().String("status", "", "filter by status")
-	listCmd.Flags().String("epic", "", "filter by epic ID")
+	listCmd.Flags().String("epic", "", "filter by epic <id-or-ref>")
 
 	// show
 	showCmd := &cobra.Command{
-		Use:   "show <id>",
+		Use:   "show <id-or-ref>",
 		Short: "Show task details",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			t, err := database.GetTask(args[0])
+			id := mustResolveID(args[0])
+			t, err := database.GetTask(id)
 			if err != nil {
 				outputError(err.Error())
 				return nil
@@ -90,7 +90,7 @@ func newTaskCmd() *cobra.Command {
 
 	// update
 	updateCmd := &cobra.Command{
-		Use:   "update <id>",
+		Use:   "update <id-or-ref>",
 		Short: "Update a task",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -111,7 +111,8 @@ func newTaskCmd() *cobra.Command {
 				priPtr = &v
 			}
 
-			t, err := database.UpdateTask(args[0], titlePtr, notesPtr, priPtr, changedBy())
+			id := mustResolveID(args[0])
+			t, err := database.UpdateTask(id, titlePtr, notesPtr, priPtr, changedBy())
 			if err != nil {
 				outputError(err.Error())
 				return nil
@@ -126,11 +127,12 @@ func newTaskCmd() *cobra.Command {
 
 	// start
 	startCmd := &cobra.Command{
-		Use:   "start <id>",
+		Use:   "start <id-or-ref>",
 		Short: "Start a task (set to in_progress)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			t, err := database.SetTaskStatus(args[0], "in_progress", changedBy())
+			id := mustResolveID(args[0])
+			t, err := database.SetTaskStatus(id, "in_progress", changedBy())
 			if err != nil {
 				outputError(err.Error())
 				return nil
@@ -142,11 +144,12 @@ func newTaskCmd() *cobra.Command {
 
 	// block
 	blockCmd := &cobra.Command{
-		Use:   "block <id>",
+		Use:   "block <id-or-ref>",
 		Short: "Mark a task as blocked",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			t, err := database.SetTaskStatus(args[0], "blocked", changedBy())
+			id := mustResolveID(args[0])
+			t, err := database.SetTaskStatus(id, "blocked", changedBy())
 			if err != nil {
 				outputError(err.Error())
 				return nil
@@ -158,11 +161,12 @@ func newTaskCmd() *cobra.Command {
 
 	// close
 	closeCmd := &cobra.Command{
-		Use:   "close <id>",
+		Use:   "close <id-or-ref>",
 		Short: "Close a task",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			t, err := database.SetTaskStatus(args[0], "done", changedBy())
+			id := mustResolveID(args[0])
+			t, err := database.SetTaskStatus(id, "done", changedBy())
 			if err != nil {
 				outputError(err.Error())
 				return nil
@@ -182,10 +186,7 @@ func newTaskCmd() *cobra.Command {
 				outputError(err.Error())
 				return nil
 			}
-			var out []interface{}
-			for _, t := range tasks {
-				out = append(out, t.ToJSON())
-			}
+			out := toTaskJSONList(tasks)
 			if out == nil {
 				outputJSON([]interface{}{})
 			} else {
@@ -197,17 +198,19 @@ func newTaskCmd() *cobra.Command {
 
 	// delete
 	deleteCmd := &cobra.Command{
-		Use:   "delete <id>",
+		Use:   "delete <id-or-ref>",
 		Short: "Permanently delete a task",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			force, _ := cmd.Flags().GetBool("force")
-			err := database.DeleteTask(args[0], force, changedBy())
+			id := mustResolveID(args[0])
+			ref, _ := resolveRef(id)
+			err := database.DeleteTask(id, force, changedBy())
 			if err != nil {
 				outputError(err.Error())
 				return nil
 			}
-			outputJSON(map[string]string{"status": "deleted", "id": args[0]})
+			outputJSON(map[string]string{"status": "deleted", "id": id, "ref": ref})
 			return nil
 		},
 	}

@@ -11,54 +11,83 @@ func newDepCmd() *cobra.Command {
 	}
 
 	addCmd := &cobra.Command{
-		Use:   "add <upstream-id> <downstream-id>",
+		Use:   "add <upstream-id-or-ref> <downstream-id-or-ref>",
 		Short: "Add dependency (upstream blocks downstream)",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := database.AddDependency(args[0], args[1], changedBy())
+			upstreamID := mustResolveID(args[0])
+			downstreamID := mustResolveID(args[1])
+			err := database.AddDependency(upstreamID, downstreamID, changedBy())
 			if err != nil {
 				outputError(err.Error())
 				return nil
 			}
+			upstreamRef, _ := resolveRef(upstreamID)
+			downstreamRef, _ := resolveRef(downstreamID)
 			outputJSON(map[string]string{
-				"status":      "added",
-				"upstream_id":  args[0],
-				"downstream_id": args[1],
+				"status":         "added",
+				"upstream_id":    upstreamID,
+				"upstream_ref":   upstreamRef,
+				"downstream_id":  downstreamID,
+				"downstream_ref": downstreamRef,
 			})
 			return nil
 		},
 	}
 
 	removeCmd := &cobra.Command{
-		Use:   "remove <upstream-id> <downstream-id>",
+		Use:   "remove <upstream-id-or-ref> <downstream-id-or-ref>",
 		Short: "Remove dependency",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := database.RemoveDependency(args[0], args[1], changedBy())
+			upstreamID := mustResolveID(args[0])
+			downstreamID := mustResolveID(args[1])
+			upstreamRef, _ := resolveRef(upstreamID)
+			downstreamRef, _ := resolveRef(downstreamID)
+			err := database.RemoveDependency(upstreamID, downstreamID, changedBy())
 			if err != nil {
 				outputError(err.Error())
 				return nil
 			}
 			outputJSON(map[string]string{
-				"status":      "removed",
-				"upstream_id":  args[0],
-				"downstream_id": args[1],
+				"status":         "removed",
+				"upstream_id":    upstreamID,
+				"upstream_ref":   upstreamRef,
+				"downstream_id":  downstreamID,
+				"downstream_ref": downstreamRef,
 			})
 			return nil
 		},
 	}
 
 	listCmd := &cobra.Command{
-		Use:   "list <id>",
+		Use:   "list <id-or-ref>",
 		Short: "List dependencies for a task",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			info, err := database.GetDependencies(args[0])
+			id := mustResolveID(args[0])
+			info, err := database.GetDependencies(id)
 			if err != nil {
 				outputError(err.Error())
 				return nil
 			}
-			outputJSON(info)
+
+			blockedBy := make([]map[string]string, 0, len(info.BlockedBy))
+			for _, depID := range info.BlockedBy {
+				ref, _ := resolveRef(depID)
+				blockedBy = append(blockedBy, map[string]string{"id": depID, "ref": ref})
+			}
+			blocks := make([]map[string]string, 0, len(info.Blocks))
+			for _, depID := range info.Blocks {
+				ref, _ := resolveRef(depID)
+				blocks = append(blocks, map[string]string{"id": depID, "ref": ref})
+			}
+			outputJSON(map[string]interface{}{
+				"id":         id,
+				"ref":        mustResolveRef(id),
+				"blocked_by": blockedBy,
+				"blocks":     blocks,
+			})
 			return nil
 		},
 	}

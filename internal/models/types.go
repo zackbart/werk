@@ -4,37 +4,42 @@ import "time"
 
 type Task struct {
 	ID        string     `json:"id"`
-	ParentID  *string    `json:"parent_id,omitempty"`
+	Ref       string     `json:"ref"`
+	ParentID  *string    `json:"parent_id"`
+	ParentRef *string    `json:"parent_ref"`
 	Type      string     `json:"type"`
 	Title     string     `json:"title"`
 	Status    string     `json:"status"`
 	Priority  int        `json:"priority"`
-	Notes     *string    `json:"notes,omitempty"`
+	Notes     *string    `json:"notes"`
 	Blockers  []string   `json:"blockers,omitempty"`
 	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt *time.Time `json:"updated_at,omitempty"`
-	ClosedAt  *time.Time `json:"closed_at,omitempty"`
+	UpdatedAt *time.Time `json:"updated_at"`
+	ClosedAt  *time.Time `json:"closed_at"`
 }
 
-// TaskJSON controls output field names to match spec (epic_id / task_id based on type)
 type TaskJSON struct {
 	ID        string     `json:"id"`
+	Ref       string     `json:"ref"`
+	ParentID  *string    `json:"parent_id"`
+	ParentRef *string    `json:"parent_ref"`
 	Type      string     `json:"type"`
 	Title     string     `json:"title"`
 	Status    string     `json:"status"`
 	Priority  int        `json:"priority"`
-	EpicID    *string    `json:"epic_id,omitempty"`
-	TaskID    *string    `json:"task_id,omitempty"`
 	Blockers  []string   `json:"blockers"`
-	Notes     *string    `json:"notes,omitempty"`
+	Notes     *string    `json:"notes"`
 	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt *time.Time `json:"updated_at,omitempty"`
-	ClosedAt  *time.Time `json:"closed_at,omitempty"`
+	UpdatedAt *time.Time `json:"updated_at"`
+	ClosedAt  *time.Time `json:"closed_at"`
 }
 
 func (t Task) ToJSON() TaskJSON {
 	j := TaskJSON{
 		ID:        t.ID,
+		Ref:       t.Ref,
+		ParentID:  t.ParentID,
+		ParentRef: t.ParentRef,
 		Type:      t.Type,
 		Title:     t.Title,
 		Status:    t.Status,
@@ -47,12 +52,6 @@ func (t Task) ToJSON() TaskJSON {
 	}
 	if j.Blockers == nil {
 		j.Blockers = []string{}
-	}
-	switch t.Type {
-	case "task":
-		j.EpicID = t.ParentID
-	case "subtask":
-		j.TaskID = t.ParentID
 	}
 	return j
 }
@@ -99,6 +98,27 @@ type LogEntry struct {
 	ID        string    `json:"id"`
 	Title     string    `json:"title"`
 	Detail    *string   `json:"detail,omitempty"`
+}
+
+type HandoffRelation struct {
+	ID     string `json:"id"`
+	Ref    string `json:"ref"`
+	Type   string `json:"type"`
+	Title  string `json:"title"`
+	Status string `json:"status"`
+}
+
+type HandoffDependencies struct {
+	BlockedBy []HandoffRelation `json:"blocked_by"`
+	Blocks    []HandoffRelation `json:"blocks"`
+}
+
+type CompactHandoff struct {
+	Item         TaskJSON            `json:"item"`
+	Dependencies HandoffDependencies `json:"dependencies"`
+	Children     []TaskJSON          `json:"children"`
+	Decisions    []Decision          `json:"decisions"`
+	RecentAudit  []AuditEntry        `json:"recent_audit"`
 }
 
 type StatusSummary struct {

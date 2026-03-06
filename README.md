@@ -43,14 +43,29 @@ Or download a binary directly from [GitHub Releases](https://github.com/zackbart
 ```bash
 werk init                                          # creates .werk/tasks.db
 werk epic create "User Auth" --priority 1 --notes "Login, logout, sessions"
-werk task create "Implement login endpoint" --epic ep-a1b2c3
-werk task create "Write auth tests" --epic ep-a1b2c3
-werk dep add tk-abc123 tk-def456                   # login blocks tests
-werk task start tk-abc123
-werk task close tk-abc123
+werk task create "Implement login endpoint" --epic 1
+werk task create "Write auth tests" --epic 1
+werk dep add 1.1 1.2                               # login blocks tests
+werk task start 1.1
+werk task close 1.1
 werk task ready                                    # shows unblocked work
 werk status                                        # project summary
 ```
+
+## IDs and refs (v0.2)
+
+Werk now exposes two identifiers for epics/tasks/subtasks:
+
+- `id`: immutable internal hash ID (`ep-...`, `tk-...`, `st-...`) used as primary key
+- `ref`: human/model-friendly dotted ref assigned at create time and never renumbered
+
+Ref format:
+
+- Epic: `1`, `2`, ...
+- Task: `<epicRef>.<n>` (example `1.2`)
+- Subtask: `<taskRef>.<n>` (example `1.2.1`)
+
+Commands that accepted task-like IDs now accept `<id-or-ref>`, and task-like JSON includes both `id` and `ref`.
 
 ## Hierarchy
 
@@ -73,8 +88,9 @@ werk task create|list|show|update|start|block|close|delete|ready
 werk subtask create|list|show|update|start|close|delete
 werk dep add|remove|list
 werk decision create|list|show
-werk session start|end|list|show
-werk audit <task-id>
+werk session start|end|list|show|recover
+werk audit <task-id-or-ref>
+werk handoff <id-or-ref> --compact
 werk log [-n 20] [--verbose]
 
 werk serve up [--port 8080]            Start web UI
@@ -90,9 +106,9 @@ Pass `--agent` on all write commands to mark changes as agent-authored in the au
 ```bash
 werk session start --agent
 werk task ready --agent
-werk task start tk-abc123 --agent
+werk task start 1.1 --agent
 # ... do work ...
-werk task close tk-abc123 --agent
+werk task close 1.1 --agent
 werk session end --summary "Implemented login endpoint, filed 2 new tasks" --agent
 ```
 
@@ -152,7 +168,7 @@ Decisions are append-only. They can't be closed or deleted. They exist so future
 Every write through the CLI creates an audit entry recording what changed, when, and whether it was an agent or human:
 
 ```bash
-werk audit tk-abc123
+werk audit 1.1
 ```
 
 ```json
@@ -174,6 +190,30 @@ werk session end --summary "Built auth middleware, filed 3 subtasks" --agent
 
 Every CLI write during an active session automatically records which tasks were touched. The summary gives the next agent a fast orientation without reading individual audit entries.
 
+If a previous run crashes and leaves stale lock state:
+
+```bash
+werk session recover
+```
+
+This safely clears invalid or stale `session.lock` files and keeps valid active locks intact.
+
+## Handoff packet
+
+Generate a compact machine-friendly packet for an epic/task/subtask:
+
+```bash
+werk handoff 1.1 --compact
+```
+
+The packet includes the item identity/core metadata, dependencies/blockers, children, recent decisions, and recent audit context.
+
+## Migration notes (v0.2)
+
+- Existing databases are migrated in place with a new `ref` field.
+- Missing refs on older rows are backfilled once from current hierarchy.
+- Hash IDs remain the internal primary key; refs are additive and stable.
+
 ## Design
 
 - **Local-first** — everything lives in `.werk/tasks.db`. No network, no accounts, no sync.
@@ -181,7 +221,7 @@ Every CLI write during an active session automatically records which tasks were 
 - **Audit everything** — every state change is logged. History is never destroyed.
 - **JSON by default** — agent-friendly. `--pretty` for humans.
 - **Single binary** — CLI and web server in one executable. Pure Go, no CGO.
-- **Fail loudly** — non-zero exit codes and `{"error": "message"}` on all failures.
+- **Fail loudly** — non-zero exit codes and stable machine errors: `{"code":"ERR_*","message":"..."}`.
 
 ## Project structure
 

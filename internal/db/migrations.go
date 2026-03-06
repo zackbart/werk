@@ -1,8 +1,16 @@
 package db
 
+import (
+	"database/sql"
+	"fmt"
+	"strconv"
+	"strings"
+)
+
 const schema = `
 CREATE TABLE IF NOT EXISTS tasks (
   id          TEXT PRIMARY KEY,
+  ref         TEXT UNIQUE,
   parent_id   TEXT REFERENCES tasks(id),
   type        TEXT NOT NULL CHECK(type IN ('epic','task','subtask')),
   title       TEXT NOT NULL,
@@ -52,5 +60,211 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 func (d *DB) Migrate() error {
 	_, err := d.conn.Exec(schema)
+	if err != nil {
+		return err
+	}
+
+	if err := d.ensureTaskRefColumn(); err != nil {
+		return err
+	}
+	if err := d.backfillMissingRefs(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *DB) ensureTaskRefColumn() error {
+	rows, err := d.conn.Query(`PRAGMA table_info(tasks)`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	hasRef := false
+	for rows.Next() {
+		var cid int
+		var name, colType string
+		var notNull, pk int
+		var dflt sql.NullString
+		if err := rows.Scan(&cid, &name, &colType, &notNull, &dflt, &pk); err != nil {
+			return err
+		}
+		if name == "ref" {
+			hasRef = true
+			break
+		}
+	}
+
+	if !hasRef {
+		if _, err := d.conn.Exec(`ALTER TABLE tasks ADD COLUMN ref TEXT`); err != nil {
+			return err
+		}
+	}
+	_, err = d.conn.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_ref ON tasks(ref) WHERE ref IS NOT NULL`)
 	return err
+}
+
+func (d *DB) backfillMissingRefs() error {
+	// Fill top-level epics first.
+	epics, err := d.selectTaskIDsByType("epic")
+	if err != nil {
+		return err
+	}
+	for _, epicID := range epics {
+		if err := d.ensureTaskRef(epicID); err != nil {
+			return err
+		}
+	}
+
+	// Then tasks, then subtasks.
+	tasks, err := d.selectTaskIDsByType("task")
+	if err != nil {
+		return err
+	}
+	for _, taskID := range tasks {
+		if err := d.ensureTaskRef(taskID); err != nil {
+			return err
+		}
+	}
+
+	subtasks, err := d.selectTaskIDsByType("subtask")
+	if err != nil {
+		return err
+	}
+	for _, subtaskID := range subtasks {
+		if err := d.ensureTaskRef(subtaskID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (d *DB) selectTaskIDsByType(taskType string) ([]string, error) {
+	rows, err := d.conn.Query(`SELECT id FROM tasks WHERE type = ? ORDER BY created_at ASC, id ASC`, taskType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, nil
+}
+
+func (d *DB) ensureTaskRef(taskID string) error {
+	var currentRef sql.NullString
+	var taskType string
+	var parentID sql.NullString
+	err := d.conn.QueryRow(`SELECT ref, type, parent_id FROM tasks WHERE id = ?`, taskID).Scan(&currentRef, &taskType, &parentID)
+	if err != nil {
+		return err
+	}
+	if currentRef.Valid && strings.TrimSpace(currentRef.String) != "" {
+		return nil
+	}
+
+	var parentPtr *string
+	if parentID.Valid {
+		parentPtr = &parentID.String
+	}
+
+	nextRef, err := d.nextTaskRef(taskType, parentPtr)
+	if err != nil {
+		return err
+	}
+	_, err = d.conn.Exec(`UPDATE tasks SET ref = ? WHERE id = ?`, nextRef, taskID)
+	return err
+}
+
+func (d *DB) nextTaskRef(taskType string, parentID *string) (string, error) {
+	if taskType == "epic" {
+		next, err := d.nextTopLevelRef()
+		if err != nil {
+			return "", err
+		}
+		return strconv.Itoa(next), nil
+	}
+
+	if parentID == nil {
+		return "", fmt.Errorf("parent is required for %s refs", taskType)
+	}
+
+	var parentRef sql.NullString
+	err := d.conn.QueryRow(`SELECT ref FROM tasks WHERE id = ?`, *parentID).Scan(&parentRef)
+	if err != nil {
+		return "", err
+	}
+	if !parentRef.Valid || strings.TrimSpace(parentRef.String) == "" {
+		if err := d.ensureTaskRef(*parentID); err != nil {
+			return "", err
+		}
+		if err := d.conn.QueryRow(`SELECT ref FROM tasks WHERE id = ?`, *parentID).Scan(&parentRef); err != nil {
+			return "", err
+		}
+	}
+
+	next, err := d.nextChildSuffix(*parentID)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s.%d", parentRef.String, next), nil
+}
+
+func (d *DB) nextTopLevelRef() (int, error) {
+	rows, err := d.conn.Query(`SELECT ref FROM tasks WHERE type = 'epic' AND ref IS NOT NULL`)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	maxN := 0
+	for rows.Next() {
+		var ref string
+		if err := rows.Scan(&ref); err != nil {
+			return 0, err
+		}
+		n, err := strconv.Atoi(strings.TrimSpace(ref))
+		if err != nil {
+			continue
+		}
+		if n > maxN {
+			maxN = n
+		}
+	}
+	return maxN + 1, nil
+}
+
+func (d *DB) nextChildSuffix(parentID string) (int, error) {
+	rows, err := d.conn.Query(`SELECT ref FROM tasks WHERE parent_id = ? AND ref IS NOT NULL`, parentID)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	maxN := 0
+	for rows.Next() {
+		var ref string
+		if err := rows.Scan(&ref); err != nil {
+			return 0, err
+		}
+		parts := strings.Split(strings.TrimSpace(ref), ".")
+		if len(parts) == 0 {
+			continue
+		}
+		n, err := strconv.Atoi(parts[len(parts)-1])
+		if err != nil {
+			continue
+		}
+		if n > maxN {
+			maxN = n
+		}
+	}
+	return maxN + 1, nil
 }
