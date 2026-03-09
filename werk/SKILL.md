@@ -13,7 +13,7 @@ compatibility: Requires the werk binary in PATH. Run werk init to set up.
 allowed-tools: Bash(werk:*)
 metadata:
   author: werk
-  version: "0.2.3"
+  version: "0.3.0"
 ---
 
 # werk
@@ -79,15 +79,14 @@ If `--summary` is omitted, an auto-summary is generated from audit entries durin
 
 ## Core workflow
 
-1. `werk next --agent` — pick the highest-priority ready task and start it automatically
+1. `werk next --agent` — pick the highest-priority ready task and start it; response includes `subtasks` array
    - Or manually: `werk task ready --agent` then `werk task start <id> --agent`
-2. `werk subtask list --task <id> --agent` — check for subtasks
-3. Do the work. File subtasks for steps discovered along the way.
-4. `werk task note <id> "<text>" --agent` — append progress notes as you go
-5. **Decision checkpoint:** Did you choose between alternatives or make a non-obvious tradeoff? File a decision *now* — not later. Keep it tight: the summary is the choice ("Use X over Y"), the rationale is the *why* in 1-2 sentences. Skip decisions for obvious or forced choices.
-6. `werk subtask close <id> --agent` — close each subtask as you finish it
-7. `werk task close <id> --agent` — close the task (all subtasks must be done first)
-8. `werk task ready --agent` — check for newly unblocked work and repeat
+2. Do the work. File subtasks for steps discovered along the way.
+3. `werk task note <id> "<text>" --agent` — append progress notes as you go
+4. **Decision checkpoint:** Did you choose between alternatives or make a non-obvious tradeoff? File a decision *now* — not later. Keep it tight: the summary is the choice ("Use X over Y"), the rationale is the *why* in 1-2 sentences. Skip decisions for obvious or forced choices.
+5. `werk subtask close <id> --agent` — close each subtask as you finish it
+6. `werk task close <id> --agent` — close the task (all subtasks must be done first)
+7. `werk task ready --agent` — check for newly unblocked work and repeat
 
 ### Bulk operations
 

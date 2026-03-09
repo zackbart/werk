@@ -52,12 +52,19 @@ func newSessionCmd() *cobra.Command {
 			if withContext {
 				log, _ := database.GetLog(20, false)
 				ready, _ := database.ReadyTasks()
-				inProgress, _ := database.ListTasks("task", nil, "in_progress")
+				inProgressTasks, _ := database.ListTasks("task", nil, "in_progress")
+				inProgress := make([]interface{}, 0, len(inProgressTasks))
+				for _, t := range inProgressTasks {
+					entry := t.ToJSON()
+					subtasks, _ := database.ListChildren(t.ID)
+					entry["subtasks"] = toTaskJSONList(subtasks)
+					inProgress = append(inProgress, entry)
+				}
 				outputJSON(map[string]interface{}{
 					"session":     s,
 					"log":         log,
 					"ready":       toTaskJSONList(ready),
-					"in_progress": toTaskJSONList(inProgress),
+					"in_progress": inProgress,
 				})
 			} else {
 				outputJSON(s)
