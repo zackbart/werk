@@ -84,7 +84,7 @@ werk dep add|remove|list
 werk decision create|list|show
 werk session start|end|list|show|recover
 werk audit <id>
-werk handoff <id> --compact
+werk handoff <id>
 werk log [-n 20] [--verbose]
 
 werk serve up [--port 8080]            Start web UI
@@ -194,10 +194,10 @@ This safely clears invalid or stale `session.lock` files and keeps valid active 
 
 ## Handoff packet
 
-Generate a compact machine-friendly packet for an epic/task/subtask:
+Generate a machine-friendly context packet for an epic/task/subtask:
 
 ```bash
-werk handoff tk-a1b2c3 --compact
+werk handoff tk-a1b2c3
 ```
 
 The packet includes the item identity/core metadata, dependencies/blockers, children, recent decisions, and recent audit context.

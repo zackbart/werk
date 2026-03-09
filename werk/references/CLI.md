@@ -120,7 +120,7 @@ Auto-summary: if `--summary` is not provided on `session end`, a summary is gene
 
 ```
 werk audit <task-id-or-ref>                        Full change history
-werk handoff <id> --compact                 Compact handoff packet
+werk handoff <id>                 Compact handoff packet
 ```
 
 ## Log
@@ -142,7 +142,7 @@ Shows a reverse-chronological feed of high-signal events: task status changes (c
 werk next --agent                                  Pick highest-priority ready task and start it
 ```
 
-Selects the highest-priority unblocked task (by priority ASC, then created_at ASC) and sets it to `in_progress`.
+Selects the highest-priority unblocked task (by priority ASC, then created_at ASC), sets it to `in_progress`, and returns the task with a `subtasks` array — no follow-up call needed.
 
 ## Batch
 

@@ -290,10 +290,10 @@ werk diff --since <session-id>         # changes since a specific session
 
 ## Handoff
 
-Use compact handoff packets to transfer context between agents:
+Transfer context between agents with a handoff packet:
 
 ```
-werk handoff <id> --compact
+werk handoff <id>
 ```
 
 The packet includes item identity/core metadata, dependencies + blockers, child items, recent decisions, and recent audit context.

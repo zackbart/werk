@@ -25,7 +25,10 @@ func newNextCmd() *cobra.Command {
 				outputError(err.Error())
 				return nil
 			}
-			outputJSON(t.ToJSON())
+			subtasks, _ := database.ListChildren(t.ID)
+			out := t.ToJSON()
+			out["subtasks"] = toTaskJSONList(subtasks)
+			outputJSON(out)
 			return nil
 		},
 	}

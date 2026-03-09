@@ -134,7 +134,7 @@ werk task note tk-a1b2c3 "progress" --agent   Append notes to a task
 werk epic list                          What features exist?
 werk dep list <id>                      What blocks this / what does this block?
 werk audit <id>                         Full history of a single task
-werk handoff <id> --compact             Context packet for agent handoff
+werk handoff <id>             Context packet for agent handoff
 werk status                             Project summary (with active session)
 werk decision create "X over Y" --rationale "..." --agent   Record a non-obvious choice
 werk decision list                      Architectural decision log
