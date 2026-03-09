@@ -39,6 +39,7 @@ type TaskJSON struct {
 	StartedAt        *time.Time       `json:"started_at,omitempty"`
 	UpdatedAt        *time.Time       `json:"updated_at"`
 	ClosedAt         *time.Time       `json:"closed_at"`
+	Subtasks         []TaskJSON       `json:"subtasks,omitempty"`
 }
 
 type SubtaskProgress struct {

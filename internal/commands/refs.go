@@ -39,3 +39,11 @@ func toTaskJSONList(tasks []models.Task) []interface{} {
 	}
 	return out
 }
+
+func toTaskJSONSlice(tasks []models.Task) []models.TaskJSON {
+	out := make([]models.TaskJSON, 0, len(tasks))
+	for _, t := range tasks {
+		out = append(out, t.ToJSON())
+	}
+	return out
+}

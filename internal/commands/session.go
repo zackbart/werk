@@ -57,7 +57,7 @@ func newSessionCmd() *cobra.Command {
 				for _, t := range inProgressTasks {
 					entry := t.ToJSON()
 					subtasks, _ := database.ListChildren(t.ID)
-					entry["subtasks"] = toTaskJSONList(subtasks)
+					entry.Subtasks = toTaskJSONSlice(subtasks)
 					inProgress = append(inProgress, entry)
 				}
 				outputJSON(map[string]interface{}{
