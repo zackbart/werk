@@ -43,29 +43,23 @@ Or download a binary directly from [GitHub Releases](https://github.com/zackbart
 ```bash
 werk init                                          # creates .werk/tasks.db
 werk epic create "User Auth" --priority 1 --notes "Login, logout, sessions"
-werk task create "Implement login endpoint" --epic 1
-werk task create "Write auth tests" --epic 1
-werk dep add 1.1 1.2                               # login blocks tests
-werk task start 1.1
-werk task close 1.1
+werk task create "Implement login endpoint" --epic ep-a1b2c3
+werk task create "Write auth tests" --epic ep-a1b2c3
+werk dep add tk-a1b2c3 tk-d4e5f6                   # login blocks tests
+werk task start tk-a1b2c3
+werk task close tk-a1b2c3
 werk task ready                                    # shows unblocked work
 werk status                                        # project summary
 ```
 
-## IDs and refs (v0.2)
+## IDs and refs
 
-Werk now exposes two identifiers for epics/tasks/subtasks:
+Items have two identifiers:
 
-- `id`: immutable internal hash ID (`ep-...`, `tk-...`, `st-...`) used as primary key
-- `ref`: human/model-friendly dotted ref assigned at create time and never renumbered
+- `id`: immutable hash ID (`ep-...`, `tk-...`, `st-...`) — use this as the CLI argument
+- `ref`: display label (`1`, `1.2`, `1.2.1`) — shown in web UI and `--pretty` output only, not accepted as CLI input
 
-Ref format:
-
-- Epic: `1`, `2`, ...
-- Task: `<epicRef>.<n>` (example `1.2`)
-- Subtask: `<taskRef>.<n>` (example `1.2.1`)
-
-Commands that accepted task-like IDs now accept `<id-or-ref>`, and task-like JSON includes both `id` and `ref`.
+All commands take hash IDs. The `ref` field in JSON output is for human readability in the web UI.
 
 ## Hierarchy
 
@@ -89,8 +83,8 @@ werk subtask create|list|show|update|start|close|delete
 werk dep add|remove|list
 werk decision create|list|show
 werk session start|end|list|show|recover
-werk audit <task-id-or-ref>
-werk handoff <id-or-ref> --compact
+werk audit <id>
+werk handoff <id> --compact
 werk log [-n 20] [--verbose]
 
 werk serve up [--port 8080]            Start web UI
@@ -106,9 +100,9 @@ Pass `--agent` on all write commands to mark changes as agent-authored in the au
 ```bash
 werk session start --agent
 werk task ready --agent
-werk task start 1.1 --agent
+werk task start tk-a1b2c3 --agent
 # ... do work ...
-werk task close 1.1 --agent
+werk task close tk-a1b2c3 --agent
 werk session end --summary "Implemented login endpoint, filed 2 new tasks" --agent
 ```
 
@@ -168,7 +162,7 @@ Decisions are append-only. They can't be closed or deleted. They exist so future
 Every write through the CLI creates an audit entry recording what changed, when, and whether it was an agent or human:
 
 ```bash
-werk audit 1.1
+werk audit tk-a1b2c3
 ```
 
 ```json
@@ -203,16 +197,16 @@ This safely clears invalid or stale `session.lock` files and keeps valid active 
 Generate a compact machine-friendly packet for an epic/task/subtask:
 
 ```bash
-werk handoff 1.1 --compact
+werk handoff tk-a1b2c3 --compact
 ```
 
 The packet includes the item identity/core metadata, dependencies/blockers, children, recent decisions, and recent audit context.
 
-## Migration notes (v0.2+)
+## Migration notes (v0.3+)
 
 - Run `werk init` on existing projects to upgrade the schema in place.
-- Missing refs on older rows are backfilled automatically from current hierarchy.
-- Hash IDs remain the internal primary key; refs are additive and stable.
+- Existing refs are preserved in the database as display labels; new items will have no ref assigned.
+- Hash IDs are the only accepted CLI input for all commands.
 - `.gitignore` patterns are corrected automatically on upgrade.
 
 ## Worktrees and snapshots

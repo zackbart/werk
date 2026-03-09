@@ -82,7 +82,7 @@ func newEpicCmd() *cobra.Command {
 
 	// show
 	showCmd := &cobra.Command{
-		Use:   "show <id-or-ref>",
+		Use:   "show <id>",
 		Short: "Show epic details",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -99,7 +99,7 @@ func newEpicCmd() *cobra.Command {
 
 	// update
 	updateCmd := &cobra.Command{
-		Use:   "update <id-or-ref>",
+		Use:   "update <id>",
 		Short: "Update an epic",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -136,7 +136,7 @@ func newEpicCmd() *cobra.Command {
 
 	// close
 	closeCmd := &cobra.Command{
-		Use:   "close <id-or-ref> [id-or-ref...]",
+		Use:   "close <id> [id...]",
 		Short: "Close an epic",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -146,7 +146,7 @@ func newEpicCmd() *cobra.Command {
 
 	// reopen
 	reopenCmd := &cobra.Command{
-		Use:   "reopen <id-or-ref> [id-or-ref...]",
+		Use:   "reopen <id> [id...]",
 		Short: "Reopen a closed epic",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -156,7 +156,7 @@ func newEpicCmd() *cobra.Command {
 
 	// delete
 	deleteCmd := &cobra.Command{
-		Use:   "delete <id-or-ref>",
+		Use:   "delete <id>",
 		Short: "Permanently delete an epic",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -176,7 +176,7 @@ func newEpicCmd() *cobra.Command {
 
 	// archive
 	archiveCmd := &cobra.Command{
-		Use:   "archive <id-or-ref>",
+		Use:   "archive <id>",
 		Short: "Archive an epic",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -193,7 +193,7 @@ func newEpicCmd() *cobra.Command {
 
 	// unarchive
 	unarchiveCmd := &cobra.Command{
-		Use:   "unarchive <id-or-ref>",
+		Use:   "unarchive <id>",
 		Short: "Unarchive an epic",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -62,14 +62,9 @@ func (d *DB) CreateTask(taskType, title string, parentID *string, priority int, 
 		return nil, err
 	}
 
-	ref, err := d.nextTaskRef(taskType, parentID)
-	if err != nil {
-		return nil, err
-	}
-
 	_, err = d.conn.Exec(
-		`INSERT INTO tasks (id, ref, parent_id, type, title, priority, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		id, ref, parentID, taskType, title, priority, notes,
+		`INSERT INTO tasks (id, parent_id, type, title, priority, notes) VALUES (?, ?, ?, ?, ?, ?)`,
+		id, parentID, taskType, title, priority, notes,
 	)
 	if err != nil {
 		return nil, err
@@ -88,7 +83,6 @@ func (d *DB) CreateTask(taskType, title string, parentID *string, priority int, 
 	if parentID != nil {
 		d.WriteAudit(id, "parent_id", nil, parentID, changedBy)
 	}
-	d.WriteAudit(id, "ref", nil, &ref, changedBy)
 
 	d.touchSession(id)
 
@@ -189,44 +183,20 @@ func (d *DB) GetTask(id string) (*models.Task, error) {
 	return t, nil
 }
 
-func (d *DB) GetTaskByRef(ref string) (*models.Task, error) {
-	var id string
-	err := d.conn.QueryRow(`SELECT id FROM tasks WHERE ref = ?`, ref).Scan(&id)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("task not found: %s", ref)
-		}
-		return nil, err
-	}
-	return d.GetTask(id)
-}
-
-func (d *DB) ResolveTaskID(idOrRef string) (string, error) {
+func (d *DB) ResolveTaskID(id string) (string, error) {
 	var exists int
-	if err := d.conn.QueryRow(`SELECT 1 FROM tasks WHERE id = ? LIMIT 1`, idOrRef).Scan(&exists); err == nil {
-		return idOrRef, nil
-	}
-	var id string
-	err := d.conn.QueryRow(`SELECT id FROM tasks WHERE ref = ?`, idOrRef).Scan(&id)
+	err := d.conn.QueryRow(`SELECT 1 FROM tasks WHERE id = ? LIMIT 1`, id).Scan(&exists)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", fmt.Errorf("task not found: %s", idOrRef)
+			return "", fmt.Errorf("task not found: %s", id)
 		}
 		return "", err
 	}
 	return id, nil
 }
 
-func (d *DB) ResolveTaskRef(idOrRef string) (string, error) {
-	t, err := d.GetTaskByIDOrRef(idOrRef)
-	if err != nil {
-		return "", err
-	}
-	return t.Ref, nil
-}
-
-func (d *DB) GetTaskByIDOrRef(idOrRef string) (*models.Task, error) {
-	id, err := d.ResolveTaskID(idOrRef)
+func (d *DB) GetTaskByIDOrRef(id string) (*models.Task, error) {
+	_, err := d.ResolveTaskID(id)
 	if err != nil {
 		return nil, err
 	}
@@ -636,59 +606,20 @@ func (d *DB) ReparentTask(id, newParentID, changedBy string) (*models.Task, erro
 		return nil, fmt.Errorf("cannot reparent %s items", existing.Type)
 	}
 
-	tx, err := d.conn.Begin()
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
-	// Compute new ref
-	newRef, err := nextTaskRef(tx, existing.Type, &newParentID)
-	if err != nil {
-		return nil, err
-	}
-
 	now := time.Now().UTC().Format(time.RFC3339)
 	oldParentID := ""
 	if existing.ParentID != nil {
 		oldParentID = *existing.ParentID
 	}
-	oldRef := existing.Ref
 
-	tx.Exec(`UPDATE tasks SET parent_id = ?, ref = ?, updated_at = ? WHERE id = ?`, newParentID, newRef, now, id)
-
-	// Update children refs recursively
-	d.updateChildRefsTx(tx, id, newRef)
-
-	if err := tx.Commit(); err != nil {
+	if _, err := d.conn.Exec(`UPDATE tasks SET parent_id = ?, updated_at = ? WHERE id = ?`, newParentID, now, id); err != nil {
 		return nil, err
 	}
 
 	d.WriteAudit(id, "parent_id", &oldParentID, &newParentID, changedBy)
-	d.WriteAudit(id, "ref", &oldRef, &newRef, changedBy)
 	d.touchSession(id)
 
 	return d.GetTask(id)
-}
-
-func (d *DB) updateChildRefsTx(tx *sql.Tx, parentID, newParentRef string) {
-	rows, err := tx.Query(`SELECT id, ref FROM tasks WHERE parent_id = ?`, parentID)
-	if err != nil {
-		return
-	}
-	var children []struct{ id, ref string }
-	for rows.Next() {
-		var c struct{ id, ref string }
-		rows.Scan(&c.id, &c.ref)
-		children = append(children, c)
-	}
-	rows.Close()
-
-	for i, child := range children {
-		newRef := fmt.Sprintf("%s.%d", newParentRef, i+1)
-		tx.Exec(`UPDATE tasks SET ref = ? WHERE id = ?`, newRef, child.id)
-		d.updateChildRefsTx(tx, child.id, newRef)
-	}
 }
 
 func (d *DB) ReadyTasks() ([]models.Task, error) {
@@ -1108,8 +1039,8 @@ func (d *DB) GetAudit(taskID string) ([]models.AuditEntry, error) {
 	return entries, nil
 }
 
-func (d *DB) BuildCompactHandoff(idOrRef string) (*models.CompactHandoff, error) {
-	task, err := d.GetTaskByIDOrRef(idOrRef)
+func (d *DB) BuildCompactHandoff(id string) (*models.CompactHandoff, error) {
+	task, err := d.GetTaskByIDOrRef(id)
 	if err != nil {
 		return nil, err
 	}

@@ -128,12 +128,12 @@ func Start(db *sql.DB, port int) error {
 	})
 
 	mux.HandleFunc("/api/audit/", func(w http.ResponseWriter, r *http.Request) {
-		idOrRef := strings.TrimPrefix(r.URL.Path, "/api/audit/")
-		if idOrRef == "" {
+		taskID := strings.TrimPrefix(r.URL.Path, "/api/audit/")
+		if taskID == "" {
 			http.Error(w, `{"error":"task ID required"}`, 400)
 			return
 		}
-		taskID := resolveTaskIDFromDB(db, idOrRef)
+		taskID = resolveTaskIDFromDB(db, taskID)
 		rows, err := db.Query("SELECT id, task_id, field, old_value, new_value, changed_at, changed_by FROM audit WHERE task_id = ? ORDER BY changed_at ASC, id ASC", taskID)
 		if err != nil {
 			writeJSON(w, []interface{}{})
@@ -213,19 +213,13 @@ func emptyIfNil[T any](s []T) interface{} {
 	return s
 }
 
-// resolveTaskIDFromDB resolves an id-or-ref to an internal ID using the DB directly.
-func resolveTaskIDFromDB(db *sql.DB, idOrRef string) string {
-	// Try as ID first
+// resolveTaskIDFromDB looks up a task ID from the DB. Accepts hash IDs only.
+func resolveTaskIDFromDB(db *sql.DB, id string) string {
 	var exists int
-	if err := db.QueryRow(`SELECT 1 FROM tasks WHERE id = ?`, idOrRef).Scan(&exists); err == nil {
-		return idOrRef
-	}
-	// Try as ref
-	var id string
-	if err := db.QueryRow(`SELECT id FROM tasks WHERE ref = ?`, idOrRef).Scan(&id); err == nil {
+	if err := db.QueryRow(`SELECT 1 FROM tasks WHERE id = ?`, id).Scan(&exists); err == nil {
 		return id
 	}
-	return idOrRef
+	return id
 }
 
 func queryTasks(db *sql.DB, taskType, status string, includeArchived bool) []map[string]interface{} {

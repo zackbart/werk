@@ -42,48 +42,48 @@ werk serve down                                    Stop web UI
 ```
 werk epic create "<title>" [--priority 0-4] [--critical|--high|--low] [--notes "<text>"] --agent
 werk epic list [--status open|in_progress|done|all] [--filter "<query>"] [--archived]
-werk epic show <id-or-ref>
-werk epic update <id-or-ref> [--title ""] [--priority 0-4] [--notes ""] --agent
-werk epic close <id-or-ref> [id-or-ref...] --agent
-werk epic reopen <id-or-ref> [id-or-ref...] --agent
-werk epic archive <id-or-ref> --agent
-werk epic unarchive <id-or-ref> --agent
-werk epic delete <id-or-ref> [--force] --agent            Permanently remove
+werk epic show <id>
+werk epic update <id> [--title ""] [--priority 0-4] [--notes ""] --agent
+werk epic close <id> [id...] --agent
+werk epic reopen <id> [id...] --agent
+werk epic archive <id> --agent
+werk epic unarchive <id> --agent
+werk epic delete <id> [--force] --agent            Permanently remove
 ```
 
 ## Tasks
 
 ```
-werk task create "<title>" --epic <id-or-ref> [--priority 0-4] [--critical|--high|--low] [--notes "<text>"] --agent
-werk task list [--epic <id-or-ref>] [--status open|in_progress|done|blocked|all] [--filter "<query>"] [--archived]
-werk task show <id-or-ref>                                 Includes subtask progress
-werk task update <id-or-ref> [--title ""] [--priority 0-4] [--notes ""] --agent
-werk task start <id-or-ref> [id-or-ref...] --agent         Set to in_progress (records started_at)
-werk task block <id-or-ref> --agent                        Set to blocked
-werk task close <id-or-ref> [id-or-ref...] --agent         Set to done
-werk task reopen <id-or-ref> [id-or-ref...] --agent        Reopen a closed task
+werk task create "<title>" --epic <id> [--priority 0-4] [--critical|--high|--low] [--notes "<text>"] --agent
+werk task list [--epic <id>] [--status open|in_progress|done|blocked|all] [--filter "<query>"] [--archived]
+werk task show <id>                                 Includes subtask progress
+werk task update <id> [--title ""] [--priority 0-4] [--notes ""] --agent
+werk task start <id> [id...] --agent         Set to in_progress (records started_at)
+werk task block <id> --agent                        Set to blocked
+werk task close <id> [id...] --agent         Set to done
+werk task reopen <id> [id...] --agent        Reopen a closed task
 werk task ready                                            List unblocked tasks
 werk task find <query>                                     Search tasks by title or notes
-werk task move <id-or-ref> --epic <id-or-ref> --agent      Reparent to a different epic
-werk task note <id-or-ref> <text> --agent                  Append text to notes
-werk task link <id-or-ref> <path-or-url> [--remove] --agent  Add/remove file or URL association
-werk task archive <id-or-ref> --agent
-werk task unarchive <id-or-ref> --agent
-werk task delete <id-or-ref> [--force] --agent             Permanently remove
+werk task move <id> --epic <id> --agent      Reparent to a different epic
+werk task note <id> <text> --agent                  Append text to notes
+werk task link <id> <path-or-url> [--remove] --agent  Add/remove file or URL association
+werk task archive <id> --agent
+werk task unarchive <id> --agent
+werk task delete <id> [--force] --agent             Permanently remove
 ```
 
 ## Subtasks
 
 ```
-werk subtask create "<title>" --task <id-or-ref> [--priority 0-4] [--critical|--high|--low] [--notes "<text>"] --agent
-werk subtask list --task <id-or-ref>
-werk subtask show <id-or-ref>
-werk subtask update <id-or-ref> [--title ""] [--notes ""] --agent
-werk subtask start <id-or-ref> [id-or-ref...] --agent
-werk subtask close <id-or-ref> [id-or-ref...] --agent
-werk subtask reopen <id-or-ref> [id-or-ref...] --agent
-werk subtask move <id-or-ref> --task <id-or-ref> --agent   Reparent to a different task
-werk subtask delete <id-or-ref> [--force] --agent          Permanently remove
+werk subtask create "<title>" --task <id> [--priority 0-4] [--critical|--high|--low] [--notes "<text>"] --agent
+werk subtask list --task <id>
+werk subtask show <id>
+werk subtask update <id> [--title ""] [--notes ""] --agent
+werk subtask start <id> [id...] --agent
+werk subtask close <id> [id...] --agent
+werk subtask reopen <id> [id...] --agent
+werk subtask move <id> --task <id> --agent   Reparent to a different task
+werk subtask delete <id> [--force] --agent          Permanently remove
 ```
 
 ## Dependencies
@@ -91,7 +91,7 @@ werk subtask delete <id-or-ref> [--force] --agent          Permanently remove
 ```
 werk dep add <upstream-id-or-ref> <downstream-id-or-ref> --agent
 werk dep remove <upstream-id-or-ref> <downstream-id-or-ref> --agent
-werk dep list <id-or-ref>                          Blockers + what this blocks
+werk dep list <id>                          Blockers + what this blocks
 ```
 
 ## Decisions
@@ -120,20 +120,20 @@ Auto-summary: if `--summary` is not provided on `session end`, a summary is gene
 
 ```
 werk audit <task-id-or-ref>                        Full change history
-werk handoff <id-or-ref> --compact                 Compact handoff packet
+werk handoff <id> --compact                 Compact handoff packet
 ```
 
 ## Log
 
 ```
-werk log [-n <limit>] [--verbose] [--task <id-or-ref>]   Recent project activity
+werk log [-n <limit>] [--verbose] [--task <id>]   Recent project activity
 ```
 
 Shows a reverse-chronological feed of high-signal events: task status changes (created, started, closed, blocked), decisions, and session start/end with summaries.
 
 - Default limit is 20 entries
 - `--verbose` / `-v` includes notes, decision rationale, and session touched-tasks
-- `--task <id-or-ref>` filters log to a specific task
+- `--task <id>` filters log to a specific task
 - Use `--pretty` for human-readable one-line-per-event format
 
 ## Next

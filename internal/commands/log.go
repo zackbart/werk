@@ -80,7 +80,7 @@ func newLogCmd() *cobra.Command {
 
 	cmd.Flags().IntP("limit", "n", 20, "number of entries to show")
 	cmd.Flags().BoolP("verbose", "v", false, "include notes, rationale, and session details")
-	cmd.Flags().String("task", "", "filter log to a specific task <id-or-ref>")
+	cmd.Flags().String("task", "", "filter log to a specific task <id>")
 
 	return cmd
 }

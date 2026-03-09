@@ -39,7 +39,7 @@ func newSubtaskCmd() *cobra.Command {
 			return nil
 		},
 	}
-	createCmd.Flags().String("task", "", "parent task <id-or-ref> (required)")
+	createCmd.Flags().String("task", "", "parent task <id> (required)")
 	createCmd.Flags().Int("priority", 2, "priority (0-4)")
 	createCmd.Flags().String("notes", "", "notes")
 	createCmd.Flags().Bool("critical", false, "set priority to 0 (critical)")
@@ -66,11 +66,11 @@ func newSubtaskCmd() *cobra.Command {
 			return nil
 		},
 	}
-	listCmd.Flags().String("task", "", "parent task <id-or-ref> (required)")
+	listCmd.Flags().String("task", "", "parent task <id> (required)")
 
 	// show
 	showCmd := &cobra.Command{
-		Use:   "show <id-or-ref>",
+		Use:   "show <id>",
 		Short: "Show subtask details",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -87,7 +87,7 @@ func newSubtaskCmd() *cobra.Command {
 
 	// update
 	updateCmd := &cobra.Command{
-		Use:   "update <id-or-ref>",
+		Use:   "update <id>",
 		Short: "Update a subtask",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -118,7 +118,7 @@ func newSubtaskCmd() *cobra.Command {
 
 	// start
 	startCmd := &cobra.Command{
-		Use:   "start <id-or-ref> [id-or-ref...]",
+		Use:   "start <id> [id...]",
 		Short: "Start a subtask",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -128,7 +128,7 @@ func newSubtaskCmd() *cobra.Command {
 
 	// close
 	closeCmd := &cobra.Command{
-		Use:   "close <id-or-ref> [id-or-ref...]",
+		Use:   "close <id> [id...]",
 		Short: "Close a subtask",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -138,7 +138,7 @@ func newSubtaskCmd() *cobra.Command {
 
 	// reopen
 	reopenCmd := &cobra.Command{
-		Use:   "reopen <id-or-ref> [id-or-ref...]",
+		Use:   "reopen <id> [id...]",
 		Short: "Reopen a closed subtask",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -148,7 +148,7 @@ func newSubtaskCmd() *cobra.Command {
 
 	// delete
 	deleteCmd := &cobra.Command{
-		Use:   "delete <id-or-ref>",
+		Use:   "delete <id>",
 		Short: "Permanently delete a subtask",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -168,7 +168,7 @@ func newSubtaskCmd() *cobra.Command {
 
 	// move
 	moveCmd := &cobra.Command{
-		Use:   "move <id-or-ref> --task <id-or-ref>",
+		Use:   "move <id> --task <id>",
 		Short: "Move a subtask to a different task",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -188,7 +188,7 @@ func newSubtaskCmd() *cobra.Command {
 			return nil
 		},
 	}
-	moveCmd.Flags().String("task", "", "target task <id-or-ref> (required)")
+	moveCmd.Flags().String("task", "", "target task <id> (required)")
 
 	subtaskCmd.AddCommand(createCmd, listCmd, showCmd, updateCmd, startCmd, closeCmd, reopenCmd, moveCmd, deleteCmd)
 	return subtaskCmd
