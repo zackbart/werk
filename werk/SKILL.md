@@ -13,14 +13,14 @@ compatibility: Requires the werk binary in PATH. Run werk init to set up.
 allowed-tools: Bash(werk:*)
 metadata:
   author: werk
-  version: "0.2.3"
+  version: "0.3.0"
 ---
 
 # werk
 
 Use the `werk` CLI for all task, decision, and session tracking. DB lives at `.werk/tasks.db`. Always pass `--agent` on all write commands.
 
-Items expose both `id` (hash like `tk-a1b2c3`) and `ref` (dotted like `1.2`). Use refs by default.
+Items use hash IDs as their primary identifier: `ep-a1b2c3` (epic), `tk-a1b2c3` (task), `st-a1b2c3` (subtask). Always use the `id` field from JSON output to reference items in subsequent commands. The `ref` field (e.g. `1.2`) is a display-only label for the web UI — do not use it as a CLI argument.
 
 See [CLI Reference](references/CLI.md) for full command list and output format.
 See [Guide](references/GUIDE.md) for issue classification, setup, dependencies, archiving, and other reference material.
@@ -79,23 +79,22 @@ If `--summary` is omitted, an auto-summary is generated from audit entries durin
 
 ## Core workflow
 
-1. `werk next --agent` — pick the highest-priority ready task and start it automatically
-   - Or manually: `werk task ready --agent` then `werk task start <ref> --agent`
-2. `werk subtask list --task <ref> --agent` — check for subtasks
-3. Do the work. File subtasks for steps discovered along the way.
-4. `werk task note <ref> "<text>" --agent` — append progress notes as you go
-5. **Decision checkpoint:** Did you choose between alternatives or make a non-obvious tradeoff? File a decision *now* — not later. Keep it tight: the summary is the choice ("Use X over Y"), the rationale is the *why* in 1-2 sentences. Skip decisions for obvious or forced choices.
-6. `werk subtask close <ref> --agent` — close each subtask as you finish it
-7. `werk task close <ref> --agent` — close the task (all subtasks must be done first)
-8. `werk task ready --agent` — check for newly unblocked work and repeat
+1. `werk next --agent` — pick the highest-priority ready task and start it; response includes `subtasks` array
+   - Or manually: `werk task ready --agent` then `werk task start <id> --agent`
+2. Do the work. File subtasks for steps discovered along the way.
+3. `werk task note <id> "<text>" --agent` — append progress notes as you go
+4. **Decision checkpoint:** Did you choose between alternatives or make a non-obvious tradeoff? File a decision *now* — not later. Keep it tight: the summary is the choice ("Use X over Y"), the rationale is the *why* in 1-2 sentences. Skip decisions for obvious or forced choices.
+5. `werk subtask close <id> --agent` — close each subtask as you finish it
+6. `werk task close <id> --agent` — close the task (all subtasks must be done first)
+7. `werk task ready --agent` — check for newly unblocked work and repeat
 
 ### Bulk operations
 
-Start, close, and reopen accept multiple refs:
+Start, close, and reopen accept multiple IDs:
 
 ```
-werk task close 1.1 1.2 1.3 --agent
-werk subtask start 1.1.1 1.1.2 --agent
+werk task close tk-a1b2c3 tk-d4e5f6 tk-g7h8i9 --agent
+werk subtask start st-a1b2c3 st-d4e5f6 --agent
 ```
 
 ---
@@ -111,8 +110,8 @@ Read the [Issue Classification Guide](references/GUIDE.md) for detailed guidance
 
 ```
 werk epic create "Feature Name" --high --notes "Why and acceptance criteria" --agent
-werk task create "Implement X" --epic 1 --notes "Approach hints" --agent
-werk subtask create "Write migration SQL" --task 1.1 --agent
+werk task create "Implement X" --epic ep-a1b2c3 --notes "Approach hints" --agent
+werk subtask create "Write migration SQL" --task tk-a1b2c3 --agent
 werk decision create "Use X over Y" --rationale "Why, tradeoffs" --agent
 ```
 
@@ -125,16 +124,16 @@ werk session start --with-context --agent  Begin a session (do this first)
 werk session end --summary "..." --agent   End a session (do this last — summarize what happened)
 werk next --agent                       Pick highest-priority ready task and start it
 werk log --pretty                       What happened recently?
-werk log --pretty --task 1.1            Activity for a specific task
+werk log --pretty --task tk-a1b2c3      Activity for a specific task
 werk log --pretty --verbose -n 10       Detailed recent activity
 werk task ready                         What can I work on right now?
 werk task list --status in_progress     What is currently in flight?
 werk task find "login"                  Search tasks by title/notes
-werk task note 1.1 "progress" --agent   Append notes to a task
+werk task note tk-a1b2c3 "progress" --agent   Append notes to a task
 werk epic list                          What features exist?
-werk dep list <id-or-ref>              What blocks this / what does this block?
-werk audit <id-or-ref>                 Full history of a single task
-werk handoff <id-or-ref> --compact     Context packet for agent handoff
+werk dep list <id>                      What blocks this / what does this block?
+werk audit <id>                         Full history of a single task
+werk handoff <id>             Context packet for agent handoff
 werk status                             Project summary (with active session)
 werk decision create "X over Y" --rationale "..." --agent   Record a non-obvious choice
 werk decision list                      Architectural decision log

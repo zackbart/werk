@@ -11,7 +11,7 @@ func newDepCmd() *cobra.Command {
 	}
 
 	addCmd := &cobra.Command{
-		Use:   "add <upstream-id-or-ref> <downstream-id-or-ref>",
+		Use:   "add <upstream-id> <downstream-id>",
 		Short: "Add dependency (upstream blocks downstream)",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -36,7 +36,7 @@ func newDepCmd() *cobra.Command {
 	}
 
 	removeCmd := &cobra.Command{
-		Use:   "remove <upstream-id-or-ref> <downstream-id-or-ref>",
+		Use:   "remove <upstream-id> <downstream-id>",
 		Short: "Remove dependency",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -61,7 +61,7 @@ func newDepCmd() *cobra.Command {
 	}
 
 	listCmd := &cobra.Command{
-		Use:   "list <id-or-ref>",
+		Use:   "list <id>",
 		Short: "List dependencies for a task",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -69,15 +69,15 @@ werk task create "Implement hash ID generation" \
 Append notes incrementally as you work — no need to rewrite the full notes field:
 
 ```
-werk task note 1.1 "Discovered edge case: empty title produces collision. Added retry logic." --agent
+werk task note tk-a1b2c3 "Discovered edge case: empty title produces collision. Added retry logic." --agent
 ```
 
 Associate files and URLs with tasks for traceability:
 
 ```
-werk task link 1.1 internal/db/id.go --agent
-werk task link 1.1 https://github.com/org/repo/pull/42 --agent
-werk task link 1.1 internal/db/id.go --remove --agent
+werk task link tk-a1b2c3 internal/db/id.go --agent
+werk task link tk-a1b2c3 https://github.com/org/repo/pull/42 --agent
+werk task link tk-a1b2c3 internal/db/id.go --remove --agent
 ```
 
 ---
@@ -103,7 +103,7 @@ A subtask is a **discrete step within a task**. It tracks individual progress wi
 
 ```
 werk subtask create "Write schema migration SQL for users table" \
-  --task 1.1 \
+  --task tk-a1b2c3 \
   --agent
 ```
 
@@ -149,12 +149,12 @@ werk decision create "Use pure-Go SQLite driver instead of CGO" \
 Dependencies model "blocks" relationships. The upstream task must be done before the downstream task can start.
 
 ```
-werk dep add 1.1 1.2 --agent
-werk dep remove 1.1 1.2 --agent
-werk dep list 1.2 --agent                     # shows what blocks it and what it blocks
+werk dep add tk-a1b2c3 tk-d4e5f6 --agent
+werk dep remove tk-a1b2c3 tk-d4e5f6 --agent
+werk dep list tk-d4e5f6 --agent               # shows what blocks it and what it blocks
 ```
 
-Before starting a task, check its blockers: `werk dep list <id-or-ref> --agent`. Never work on a task with open blockers.
+Before starting a task, check its blockers: `werk dep list <id> --agent`. Never work on a task with open blockers.
 
 Dependencies can cross epic boundaries. Cycles are rejected automatically.
 
@@ -165,11 +165,8 @@ Dependencies can cross epic boundaries. Cycles are rejected automatically.
 Move tasks between epics or subtasks between tasks:
 
 ```
-werk task move 1.1 --epic 2 --agent
-werk subtask move 1.1.1 --task 2.1 --agent
-```
-
-Refs are reassigned automatically. Children refs update recursively.
+werk task move tk-a1b2c3 --epic ep-d4e5f6 --agent
+werk subtask move st-a1b2c3 --task tk-d4e5f6 --agent
 
 ---
 
@@ -178,10 +175,10 @@ Refs are reassigned automatically. Children refs update recursively.
 Archive completed epics/tasks to hide them from default list views:
 
 ```
-werk epic archive 1 --agent
-werk task archive 1.1 --agent
+werk epic archive ep-a1b2c3 --agent
+werk task archive tk-a1b2c3 --agent
 werk epic list --archived                     # show archived items
-werk epic unarchive 1 --agent
+werk epic unarchive ep-a1b2c3 --agent
 ```
 
 ---
@@ -193,12 +190,12 @@ werk epic unarchive 1 --agent
 - Closing sets `status=done` and records `closed_at`
 - **Reopening** sets `status=open` and clears `closed_at`:
   ```
-  werk task reopen <id-or-ref> --agent
+  werk task reopen <id> --agent
   ```
 - **Deleting** permanently removes a row and its audit history. Use for duplicates and mistakes only — not for completed work:
   ```
-  werk task delete <id-or-ref> --agent             # only works on open items
-  werk task delete <id-or-ref> --force --agent     # works on any status
+  werk task delete <id> --agent             # only works on open items
+  werk task delete <id> --force --agent     # works on any status
   ```
 - Children must be deleted before parents (subtasks -> task -> epic)
 
@@ -293,10 +290,10 @@ werk diff --since <session-id>         # changes since a specific session
 
 ## Handoff
 
-Use compact handoff packets to transfer context between agents:
+Transfer context between agents with a handoff packet:
 
 ```
-werk handoff <id-or-ref> --compact
+werk handoff <id>
 ```
 
 The packet includes item identity/core metadata, dependencies + blockers, child items, recent decisions, and recent audit context.

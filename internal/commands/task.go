@@ -44,7 +44,7 @@ func newTaskCmd() *cobra.Command {
 			return nil
 		},
 	}
-	createCmd.Flags().String("epic", "", "parent epic <id-or-ref> (required)")
+	createCmd.Flags().String("epic", "", "parent epic <id> (required)")
 	createCmd.Flags().Int("priority", 2, "priority (0-4)")
 	createCmd.Flags().String("notes", "", "notes")
 	createCmd.Flags().Bool("critical", false, "set priority to 0 (critical)")
@@ -89,13 +89,13 @@ func newTaskCmd() *cobra.Command {
 		},
 	}
 	listCmd.Flags().String("status", "", "filter by status")
-	listCmd.Flags().String("epic", "", "filter by epic <id-or-ref>")
+	listCmd.Flags().String("epic", "", "filter by epic <id>")
 	listCmd.Flags().String("filter", "", "filter by title/notes substring")
 	listCmd.Flags().Bool("archived", false, "include archived items")
 
 	// show
 	showCmd := &cobra.Command{
-		Use:   "show <id-or-ref>",
+		Use:   "show <id>",
 		Short: "Show task details",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -119,7 +119,7 @@ func newTaskCmd() *cobra.Command {
 
 	// update
 	updateCmd := &cobra.Command{
-		Use:   "update <id-or-ref>",
+		Use:   "update <id>",
 		Short: "Update a task",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -156,7 +156,7 @@ func newTaskCmd() *cobra.Command {
 
 	// start
 	startCmd := &cobra.Command{
-		Use:   "start <id-or-ref> [id-or-ref...]",
+		Use:   "start <id> [id...]",
 		Short: "Start a task (set to in_progress)",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -166,7 +166,7 @@ func newTaskCmd() *cobra.Command {
 
 	// block
 	blockCmd := &cobra.Command{
-		Use:   "block <id-or-ref>",
+		Use:   "block <id>",
 		Short: "Mark a task as blocked",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -183,7 +183,7 @@ func newTaskCmd() *cobra.Command {
 
 	// close
 	closeCmd := &cobra.Command{
-		Use:   "close <id-or-ref> [id-or-ref...]",
+		Use:   "close <id> [id...]",
 		Short: "Close a task",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -193,7 +193,7 @@ func newTaskCmd() *cobra.Command {
 
 	// reopen
 	reopenCmd := &cobra.Command{
-		Use:   "reopen <id-or-ref> [id-or-ref...]",
+		Use:   "reopen <id> [id...]",
 		Short: "Reopen a closed task",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -218,7 +218,7 @@ func newTaskCmd() *cobra.Command {
 
 	// delete
 	deleteCmd := &cobra.Command{
-		Use:   "delete <id-or-ref>",
+		Use:   "delete <id>",
 		Short: "Permanently delete a task",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -254,7 +254,7 @@ func newTaskCmd() *cobra.Command {
 
 	// move
 	moveCmd := &cobra.Command{
-		Use:   "move <id-or-ref> --epic <id-or-ref>",
+		Use:   "move <id> --epic <id>",
 		Short: "Move a task to a different epic",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -274,11 +274,11 @@ func newTaskCmd() *cobra.Command {
 			return nil
 		},
 	}
-	moveCmd.Flags().String("epic", "", "target epic <id-or-ref> (required)")
+	moveCmd.Flags().String("epic", "", "target epic <id> (required)")
 
 	// archive
 	archiveCmd := &cobra.Command{
-		Use:   "archive <id-or-ref>",
+		Use:   "archive <id>",
 		Short: "Archive a task",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -295,7 +295,7 @@ func newTaskCmd() *cobra.Command {
 
 	// unarchive
 	unarchiveCmd := &cobra.Command{
-		Use:   "unarchive <id-or-ref>",
+		Use:   "unarchive <id>",
 		Short: "Unarchive a task",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -312,7 +312,7 @@ func newTaskCmd() *cobra.Command {
 
 	// note
 	noteCmd := &cobra.Command{
-		Use:   "note <id-or-ref> <text>",
+		Use:   "note <id> <text>",
 		Short: "Append text to task notes",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -329,7 +329,7 @@ func newTaskCmd() *cobra.Command {
 
 	// link
 	linkCmd := &cobra.Command{
-		Use:   "link <id-or-ref> <path-or-url>",
+		Use:   "link <id> <path-or-url>",
 		Short: "Add a file or URL association",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {

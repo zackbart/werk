@@ -21,7 +21,7 @@ var (
 	pretty    bool
 	agentMode bool
 	database  *db.DB
-	version   = "0.1.0"
+	version   = "0.3.0"
 )
 
 func changedBy() string {

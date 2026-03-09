@@ -4,24 +4,28 @@ import (
 	"werk/internal/models"
 )
 
-func resolveID(idOrRef string) (string, error) {
-	return database.ResolveTaskID(idOrRef)
+func resolveID(id string) (string, error) {
+	return database.ResolveTaskID(id)
 }
 
-func resolveRef(idOrRef string) (string, error) {
-	return database.ResolveTaskRef(idOrRef)
+func resolveRef(id string) (string, error) {
+	t, err := database.GetTask(id)
+	if err != nil {
+		return "", err
+	}
+	return t.Ref, nil
 }
 
-func mustResolveID(idOrRef string) string {
-	id, err := resolveID(idOrRef)
+func mustResolveID(id string) string {
+	resolvedID, err := resolveID(id)
 	if err != nil {
 		outputError(err.Error())
 	}
-	return id
+	return resolvedID
 }
 
-func mustResolveRef(idOrRef string) string {
-	ref, err := resolveRef(idOrRef)
+func mustResolveRef(id string) string {
+	ref, err := resolveRef(id)
 	if err != nil {
 		outputError(err.Error())
 	}

@@ -15,7 +15,6 @@ func newBatchCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root := cmd.Root()
 			scanner := bufio.NewScanner(os.Stdin)
-			var results []map[string]interface{}
 			for scanner.Scan() {
 				line := strings.TrimSpace(scanner.Text())
 				if line == "" || strings.HasPrefix(line, "#") {
@@ -24,7 +23,7 @@ func newBatchCmd() *cobra.Command {
 				cmdArgs := strings.Fields(line)
 				subCmd, subArgs, err := root.Find(cmdArgs)
 				if err != nil || subCmd == root {
-					results = append(results, map[string]interface{}{
+					outputJSON(map[string]interface{}{
 						"command": line,
 						"error":   "unknown command",
 					})
@@ -32,7 +31,7 @@ func newBatchCmd() *cobra.Command {
 				}
 				subCmd.SetArgs(subArgs)
 				if err := subCmd.Execute(); err != nil {
-					results = append(results, map[string]interface{}{
+					outputJSON(map[string]interface{}{
 						"command": line,
 						"error":   err.Error(),
 					})
