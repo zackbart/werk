@@ -2,7 +2,7 @@
 
 A local-first task and decision tracker for AI-assisted development. SQLite-backed, CLI-driven, single binary.
 
-Designed to give coding agents persistent memory across sessions without infrastructure complexity. Agents and humans use the same CLI — no special APIs, no daemons, no dependencies.
+Designed to give coding agents persistent memory across sessions without infrastructure complexity. Agents and humans use the same CLI - no special APIs, no daemons, no dependencies.
 
 ## Why
 
@@ -56,8 +56,8 @@ werk status                                        # project summary
 
 Items have two identifiers:
 
-- `id`: immutable hash ID (`ep-...`, `tk-...`, `st-...`) — use this as the CLI argument
-- `ref`: display label (`1`, `1.2`, `1.2.1`) — shown in web UI and `--pretty` output only, not accepted as CLI input
+- `id`: immutable hash ID (`ep-...`, `tk-...`, `st-...`) - use this as the CLI argument
+- `ref`: display label (`1`, `1.2`, `1.2.1`) - shown in web UI and `--pretty` output only, not accepted as CLI input
 
 All commands take hash IDs. The `ref` field in JSON output is for human readability in the web UI.
 
@@ -122,7 +122,7 @@ npx skills add zackbart/werk -g
 npx skills add zackbart/werk
 ```
 
-**Or reference it manually** — add to your `CLAUDE.md` (or equivalent agent config):
+**Or reference it manually** - add to your `CLAUDE.md` (or equivalent agent config):
 
 ```markdown
 ## Task Tracking
@@ -139,10 +139,10 @@ werk serve up --port 8080
 
 Opens a read-only web UI with:
 
-- **Board view** — kanban columns (open / in progress / blocked / done), cards grouped by epic
-- **Graph view** — force-directed dependency graph, nodes colored by status
-- **Decisions panel** — chronological log of architectural decisions
-- **Audit drawer** — click any card to see its full change history
+- **Board view** - kanban columns (open / in progress / blocked / done), cards grouped by epic
+- **Graph view** - force-directed dependency graph, nodes colored by status
+- **Decisions panel** - chronological log of architectural decisions
+- **Audit drawer** - click any card to see its full change history
 
 Stop it with `werk serve down`.
 
@@ -211,7 +211,7 @@ The packet includes the item identity/core metadata, dependencies/blockers, chil
 
 ## Worktrees and snapshots
 
-**Git worktrees:** Werk automatically discovers the main worktree's `.werk/tasks.db` when you're working in a linked worktree (e.g. `git worktree add`). No configuration needed — it uses `git rev-parse --git-common-dir` as a fallback after the normal walk-up search.
+**Git worktrees:** Werk automatically discovers the main worktree's `.werk/tasks.db` when you're working in a linked worktree (e.g. `git worktree add`). No configuration needed - it uses `git rev-parse --git-common-dir` as a fallback after the normal walk-up search.
 
 **Snapshots:** Commit a snapshot so fresh clones start with task history:
 
@@ -224,12 +224,12 @@ On `werk init` in a fresh clone, the snapshot is automatically imported. The bin
 
 ## Design
 
-- **Local-first** — everything lives in `.werk/tasks.db`. No network, no accounts, no sync.
-- **CLI is the only write interface** — the web UI is permanently read-only. No split-brain risk.
-- **Audit everything** — every state change is logged. History is never destroyed.
-- **JSON by default** — agent-friendly. `--pretty` for humans.
-- **Single binary** — CLI and web server in one executable. Pure Go, no CGO.
-- **Fail loudly** — non-zero exit codes and stable machine errors: `{"code":"ERR_*","message":"..."}`.
+- **Local-first** - everything lives in `.werk/tasks.db`. No network, no accounts, no sync.
+- **CLI is the only write interface** - the web UI is permanently read-only. No split-brain risk.
+- **Audit everything** - every state change is logged. History is never destroyed.
+- **JSON by default** - agent-friendly. `--pretty` for humans.
+- **Single binary** - CLI and web server in one executable. Pure Go, no CGO.
+- **Fail loudly** - non-zero exit codes and stable machine errors: `{"code":"ERR_*","message":"..."}`.
 
 ## Project structure
 
